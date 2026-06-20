@@ -25,6 +25,7 @@ import {
   type Theme,
   type TutorTone
 } from "@learningforge/shared";
+import { Prisma } from "@prisma/client";
 import { prisma } from "./db/client.js";
 import { personalizeQuest } from "./ai/questPersonalization.js";
 
@@ -197,25 +198,26 @@ export async function getNextProblem(questId: string) {
 export const getNextActivity = getNextProblem;
 
 export async function submitAnswer(attemptId: string, submittedAnswer: string, timeSpentSeconds?: number) {
-  const attempt = await requireAttempt(attemptId);
-  const quest = await requireQuest(attempt.questId);
-  if (attempt.isCorrect === true) {
-    return {
-      isCorrect: true,
-      correctAnswer: attempt.correctAnswer,
-      feedback: { message: feedbackFor(attempt, attempt.submittedAnswer ?? submittedAnswer, true), tone: "positive" },
-      rewardPreview: { xp: 0, coins: 0 },
-      hintAvailable: false,
-      nextAction: "continue"
-    };
-  }
+  const result = await prisma.$transaction(async (tx) => {
+    const lockedAttempt = await lockAttemptForUpdate(tx, attemptId);
+    const quest = await tx.quest.findUnique({ where: { id: lockedAttempt.questId } });
+    if (!quest) throw new Error("Quest not found.");
+    if (lockedAttempt.isCorrect === true) {
+      return {
+        isCorrect: true,
+        correctAnswer: lockedAttempt.correctAnswer,
+        feedback: { message: feedbackFor(lockedAttempt, lockedAttempt.submittedAnswer ?? submittedAnswer, true), tone: "positive" as const },
+        rewardPreview: { xp: 0, coins: 0 },
+        hintAvailable: false,
+        nextAction: "continue" as const
+      };
+    }
 
-  const wasWrongBefore = attempt.isCorrect === false;
-  const isCorrect = checkActivityAnswer(attempt, submittedAnswer);
-  const reward = answerReward({ isCorrect, hintsUsed: attempt.hintsUsed, wasIncorrectThenCorrected: wasWrongBefore && isCorrect });
-  const answeredAt = now();
+    const wasWrongBefore = lockedAttempt.isCorrect === false;
+    const isCorrect = checkActivityAnswer(lockedAttempt, submittedAnswer);
+    const reward = answerReward({ isCorrect, hintsUsed: lockedAttempt.hintsUsed, wasIncorrectThenCorrected: wasWrongBefore && isCorrect });
+    const answeredAt = now();
 
-  await prisma.$transaction(async (tx) => {
     await tx.activityAttempt.update({
       where: { id: attemptId },
       data: {
@@ -227,49 +229,60 @@ export async function submitAnswer(attemptId: string, submittedAnswer: string, t
         answeredAt
       }
     });
-    if (!isCorrect) return;
+    if (!isCorrect) {
+      return {
+        isCorrect: false,
+        correctAnswer: lockedAttempt.correctAnswer,
+        feedback: { message: feedbackFor(lockedAttempt, submittedAnswer, false), tone: "scaffold" as const },
+        rewardPreview: reward,
+        hintAvailable: true,
+        nextAction: "retry" as const
+      };
+    }
 
-    const correctProblems = await tx.activityAttempt.count({ where: { questId: quest.id, isCorrect: true } });
     await tx.quest.update({
       where: { id: quest.id },
       data: {
         xpEarned: { increment: reward.xp },
         coinsEarned: { increment: reward.coins },
-        correctProblems,
-        correctActivities: correctProblems,
-        completedActivities: correctProblems
+        correctProblems: { increment: 1 },
+        correctActivities: { increment: 1 },
+        completedActivities: { increment: 1 }
       }
     });
     const progress = await tx.studentSkillProgress.findUnique({
-      where: { studentProfileId_skillId: { studentProfileId: attempt.childProfileId, skillId: attempt.skillId } }
+      where: { studentProfileId_skillId: { studentProfileId: lockedAttempt.childProfileId, skillId: lockedAttempt.skillId } }
     });
-    if (!progress) return;
-    const nextAttempts = progress.attempts + 1;
-    const nextCorrect = progress.correct + 1;
-    const nextXp = progress.xp + reward.xp;
-    await tx.studentSkillProgress.update({
-      where: { studentProfileId_skillId: { studentProfileId: attempt.childProfileId, skillId: attempt.skillId } },
-      data: {
-        attempts: nextAttempts,
-        correct: nextCorrect,
-        xp: nextXp,
-        level: levelFromXp(nextXp).level,
-        streakCorrect: { increment: 1 },
-        streakIncorrect: 0,
-        masteryScore: masteryScore({ attempts: nextAttempts, correct: nextCorrect }),
-        lastPracticedAt: answeredAt
-      }
-    });
+    if (progress) {
+      const nextAttempts = progress.attempts + 1;
+      const nextCorrect = progress.correct + 1;
+      const nextXp = progress.xp + reward.xp;
+      await tx.studentSkillProgress.update({
+        where: { studentProfileId_skillId: { studentProfileId: lockedAttempt.childProfileId, skillId: lockedAttempt.skillId } },
+        data: {
+          attempts: nextAttempts,
+          correct: nextCorrect,
+          xp: nextXp,
+          level: levelFromXp(nextXp).level,
+          streakCorrect: { increment: 1 },
+          streakIncorrect: 0,
+          masteryScore: masteryScore({ attempts: nextAttempts, correct: nextCorrect }),
+          lastPracticedAt: answeredAt
+        }
+      });
+    }
+
+    return {
+      isCorrect: true,
+      correctAnswer: lockedAttempt.correctAnswer,
+      feedback: { message: feedbackFor(lockedAttempt, submittedAnswer, true), tone: "positive" as const },
+      rewardPreview: reward,
+      hintAvailable: false,
+      nextAction: "continue" as const
+    };
   });
 
-  return {
-    isCorrect,
-    correctAnswer: attempt.correctAnswer,
-    feedback: { message: feedbackFor(attempt, submittedAnswer, isCorrect), tone: isCorrect ? "positive" : "scaffold" },
-    rewardPreview: reward,
-    hintAvailable: !isCorrect,
-    nextAction: isCorrect ? "continue" : "retry"
-  };
+  return result;
 }
 
 export const submitActivityAnswer = submitAnswer;
@@ -284,17 +297,16 @@ export async function requestHint(attemptId: string, hintLevel: number) {
 export const requestActivityHint = requestHint;
 
 export async function completeQuest(questId: string) {
-  const quest = await requireQuest(questId);
-  const attempts = await attemptsForQuest(questId);
-  if (attempts.some((attempt) => attempt.isCorrect !== true)) {
-    throw new Error("Quest cannot be completed until every problem is answered correctly.");
-  }
+  const completedQuest = await prisma.$transaction(async (tx) => {
+    const quest = await lockQuestForUpdate(tx, questId);
+    const attempts = await tx.activityAttempt.findMany({ where: { questId }, orderBy: { createdAt: "asc" } });
+    if (attempts.some((attempt) => attempt.isCorrect !== true)) {
+      throw new Error("Quest cannot be completed until every problem is answered correctly.");
+    }
 
-  let completedQuest = quest;
-  if (quest.status !== "completed") {
-    const completionXp = rewardRules.questCompletionXp;
-    const completionCoins = rewardRules.questCompletionCoins + (quest.correctProblems === quest.totalProblems ? rewardRules.perfectQuestBonusCoins : 0);
-    completedQuest = await prisma.$transaction(async (tx) => {
+    if (quest.status !== "completed") {
+      const completionXp = rewardRules.questCompletionXp;
+      const completionCoins = rewardRules.questCompletionCoins + (quest.correctProblems === quest.totalProblems ? rewardRules.perfectQuestBonusCoins : 0);
       const updated = await tx.quest.update({
         where: { id: questId },
         data: {
@@ -318,10 +330,12 @@ export async function completeQuest(questId: string) {
         }
       });
       return toQuest(updated);
-    });
-  }
+    }
+    return quest;
+  });
 
   const bySkill = new Map<string, { attempts: number; correct: number }>();
+  const attempts = await attemptsForQuest(questId);
   for (const attempt of attempts) {
     const current = bySkill.get(attempt.skillId) ?? { attempts: 0, correct: 0 };
     current.attempts += 1;
@@ -431,54 +445,57 @@ async function createQuestFromPlan(studentProfileId: string, plan: QuestPlanItem
   const presentation = await personalizeQuest({ child, focusSkill, questLength: plan.length });
   const primarySubjectId = activityTemplates.find((template) => template.activityType === plan[0]?.activityType)?.subjectId ?? SUBJECT_IDS.math;
   const startedAt = now();
-  const quest = await prisma.quest.create({
-    data: {
-      id: id("quest"),
-      studentProfileId,
-      primarySubjectId,
-      questType,
-      title: presentation.title,
-      flavorText: presentation.flavor,
-      presentation: presentation as unknown as object,
-      focusSkillId,
-      status: "in_progress",
-      startedAt,
-      totalActivities: plan.length,
-      totalProblems: plan.length,
-      correctProblems: 0,
-      correctActivities: 0,
-      completedActivities: 0,
-      xpEarned: 0,
-      coinsEarned: 0
-    }
-  });
-  await prisma.activityAttempt.createMany({
-    data: plan.map((item, index) => {
-      const generated = generateActivity(item.activityType, { difficulty: item.difficulty, seed: index });
-      const template = activityTemplates.find((candidate) => candidate.activityType === item.activityType);
-      return {
-        id: id("attempt"),
-        questId: quest.id,
+  const quest = await prisma.$transaction(async (tx) => {
+    const createdQuest = await tx.quest.create({
+      data: {
+        id: id("quest"),
         studentProfileId,
-        subjectId: generated.subjectId,
-        domainId: generated.domainId,
-        skillId: generated.skillId,
-        activityTemplateId: template?.id,
-        activityType: generated.activityType,
-        prompt: generated.prompt,
-        stimulus: generated.stimulus as unknown as object | undefined,
-        answerFormat: generated.answerFormat,
-        choices: generated.choices as unknown as object | undefined,
-        correctAnswer: generated.correctAnswer,
-        validationMode: generated.validationMode ?? "deterministic",
-        rubric: generated.rubric as unknown as object | undefined,
-        difficulty: generated.difficulty,
-        hintsUsed: 0,
-        explanation: generated.explanation,
-        hintSequence: generated.hintSequence,
-        metadata: { ...generated.metadata, questRole: item.role, order: index + 1 }
-      };
-    }) as never
+        primarySubjectId,
+        questType,
+        title: presentation.title,
+        flavorText: presentation.flavor,
+        presentation: presentation as unknown as object,
+        focusSkillId,
+        status: "in_progress",
+        startedAt,
+        totalActivities: plan.length,
+        totalProblems: plan.length,
+        correctProblems: 0,
+        correctActivities: 0,
+        completedActivities: 0,
+        xpEarned: 0,
+        coinsEarned: 0
+      }
+    });
+    await tx.activityAttempt.createMany({
+      data: plan.map((item, index) => {
+        const generated = generateActivity(item.activityType, { difficulty: item.difficulty, seed: index });
+        const template = activityTemplates.find((candidate) => candidate.activityType === item.activityType);
+        return {
+          id: id("attempt"),
+          questId: createdQuest.id,
+          studentProfileId,
+          subjectId: generated.subjectId,
+          domainId: generated.domainId,
+          skillId: generated.skillId,
+          activityTemplateId: template?.id,
+          activityType: generated.activityType,
+          prompt: generated.prompt,
+          stimulus: generated.stimulus as unknown as object | undefined,
+          answerFormat: generated.answerFormat,
+          choices: generated.choices as unknown as object | undefined,
+          correctAnswer: generated.correctAnswer,
+          validationMode: generated.validationMode ?? "deterministic",
+          rubric: generated.rubric as unknown as object | undefined,
+          difficulty: generated.difficulty,
+          hintsUsed: 0,
+          explanation: generated.explanation,
+          hintSequence: generated.hintSequence,
+          metadata: { ...generated.metadata, questRole: item.role, order: index + 1 }
+        };
+      }) as never
+    });
+    return createdQuest;
   });
   return toQuest(quest);
 }
@@ -573,6 +590,20 @@ async function requireAttempt(attemptId: string): Promise<ActivityAttempt> {
   const attempt = await prisma.activityAttempt.findUnique({ where: { id: attemptId } });
   if (!attempt) throw new Error("Problem attempt not found.");
   return toAttempt(attempt);
+}
+
+async function lockAttemptForUpdate(tx: Prisma.TransactionClient, attemptId: string): Promise<ActivityAttempt> {
+  const rows = await tx.$queryRaw<any[]>`SELECT * FROM "ActivityAttempt" WHERE "id" = ${attemptId} FOR UPDATE`;
+  const attempt = rows[0];
+  if (!attempt) throw new Error("Problem attempt not found.");
+  return toAttempt(attempt);
+}
+
+async function lockQuestForUpdate(tx: Prisma.TransactionClient, questId: string): Promise<Quest> {
+  const rows = await tx.$queryRaw<any[]>`SELECT * FROM "Quest" WHERE "id" = ${questId} FOR UPDATE`;
+  const quest = rows[0];
+  if (!quest) throw new Error("Quest not found.");
+  return toQuest(quest);
 }
 
 async function ensureSeeded() {

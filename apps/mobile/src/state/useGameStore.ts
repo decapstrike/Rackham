@@ -162,7 +162,7 @@ export const useGameStore = create<GameState>()(
           attempts: updated,
           xp: state.xp + reward.xp,
           coins: state.coins + reward.coins,
-          totalProblemsAnswered: state.totalProblemsAnswered + (isCorrect ? 1 : 0),
+          totalProblemsAnswered: state.totalProblemsAnswered + 1,
           totalCorrectAnswers: state.totalCorrectAnswers + (isCorrect ? 1 : 0),
           feedback: {
             isCorrect,
@@ -174,10 +174,12 @@ export const useGameStore = create<GameState>()(
         const state = get();
         const attempt = state.attempts[state.currentIndex];
         if (!attempt || attempt.isCorrect === true) return undefined;
+        const nextHintLevel = Math.min(attempt.hintSequence.length, attempt.hintsUsed + 1);
         const updated = [...state.attempts];
-        updated[state.currentIndex] = { ...attempt, hintsUsed: Math.max(1, attempt.hintsUsed) };
-        set({ attempts: updated, feedback: { isCorrect: false, message: attempt.hintSequence[0] } });
-        return attempt.hintSequence[0];
+        updated[state.currentIndex] = { ...attempt, hintsUsed: nextHintLevel };
+        const hint = attempt.hintSequence[nextHintLevel - 1];
+        set({ attempts: updated, feedback: { isCorrect: false, message: hint } });
+        return hint;
       },
       continueQuest: () => {
         const state = get();

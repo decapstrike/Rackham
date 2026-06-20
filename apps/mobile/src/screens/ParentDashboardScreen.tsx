@@ -6,7 +6,7 @@ import { theme } from "../theme/theme";
 export function ParentDashboardScreen() {
   const { attempts, completedQuestCount, totalProblemsAnswered, totalCorrectAnswers } = useGameStore();
   const correct = totalCorrectAnswers || attempts.filter((attempt) => attempt.isCorrect).length;
-  const solved = totalProblemsAnswered || attempts.filter((attempt) => attempt.isCorrect).length;
+  const solved = totalProblemsAnswered || attempts.length;
   const accuracy = solved ? Math.round((correct / solved) * 100) : 0;
   const hinted = attempts.filter((attempt) => attempt.hintsUsed > 0).length;
   const needsPractice = attempts.some((attempt) => attempt.problemType === "add_fractions_unlike_denominator" && attempt.hintsUsed > 0)
