@@ -14,6 +14,8 @@ LearningForge should remain easy to run locally while the AWS path is being prep
 cp .env.example .env
 docker compose up -d postgres
 npm install
+npm run db:migrate
+npm run db:seed
 npm run build
 npm run test
 npm run dev:api
@@ -30,7 +32,7 @@ npm run dev:mobile
 | Service | URL | Purpose |
 | --- | --- | --- |
 | API | `http://localhost:4000` | Express API for profile, quest, activity/problem, rewards, and parent summary flows. |
-| Postgres | `localhost:5432` | Local database target for Prisma-backed persistence. |
+| Postgres | `localhost:55433` | Local database target for Prisma-backed persistence. |
 | Mobile | Expo dev server | Child-facing app prototype. |
 
 ## Environment Variables
@@ -38,7 +40,7 @@ npm run dev:mobile
 `DATABASE_URL` in `.env.example` matches the Docker Compose Postgres service:
 
 ```text
-postgresql://learningforge:learningforge@localhost:5432/learningforge
+postgresql://learningforge:learningforge@localhost:55433/learningforge
 ```
 
 `OPENAI_API_KEY` may stay empty. The app must continue to use deterministic fallback wording when AI is not configured.
@@ -75,7 +77,27 @@ Use the volume delete command only when you intentionally want to lose local dat
 
 ## Prisma Notes
 
-The Prisma schema uses Postgres through `DATABASE_URL`. App-owned work should decide the exact migration and seed commands. Infrastructure support should only provide the database target and document the expected environment shape.
+The Prisma schema uses Postgres through `DATABASE_URL`.
+
+Apply migrations:
+
+```sh
+npm run db:migrate
+```
+
+Seed static LearningForge catalog data:
+
+```sh
+npm run db:seed
+```
+
+Reset local data when you intentionally want a clean database:
+
+```sh
+npm run db:reset
+```
+
+The API uses the Prisma-backed store by default. Set `LEARNINGFORGE_STORE=memory` only for isolated local debugging.
 
 ## Local-to-AWS Parity
 

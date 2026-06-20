@@ -14,7 +14,9 @@
     "dev:api": "npm --workspace @learningforge/api run dev",
     "dev:mobile": "npm --workspace @learningforge/mobile run start",
     "db:generate": "npm --workspace @learningforge/api run db:generate",
-    "db:migrate": "npm --workspace @learningforge/api run db:migrate"
+    "db:migrate": "npm --workspace @learningforge/api run db:migrate",
+    "db:seed": "npm --workspace @learningforge/api run db:seed",
+    "db:reset": "npm --workspace @learningforge/api run db:reset"
   },
   "devDependencies": {
     "typescript": "^5.5.4"

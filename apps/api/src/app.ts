@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import { z } from "zod";
+import { prisma } from "./db/client.js";
 import {
   buyForgeUpgrade,
   completeQuest,
@@ -20,12 +21,17 @@ import {
   requestHint,
   submitActivityAnswer,
   submitAnswer
-} from "./store.js";
+} from "./storeAdapter.js";
 
 export const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+const asyncRoute = (handler: (req: express.Request, res: express.Response) => Promise<void>) =>
+  (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    handler(req, res).catch(next);
+  };
 
 const childProfileSchema = z.object({
   displayName: z.string().min(1).max(40),
@@ -39,97 +45,104 @@ const childProfileSchema = z.object({
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
-app.post("/child-profiles", (req, res) => {
-  const input = childProfileSchema.parse(req.body);
-  res.status(201).json({ childProfile: createChildProfile(input) });
-});
+app.get("/ready", asyncRoute(async (_req, res) => {
+  if (process.env.NODE_ENV !== "test" && process.env.LEARNINGFORGE_STORE !== "memory") {
+    await prisma.$queryRaw`SELECT 1`;
+  }
+  res.json({ ok: true });
+}));
 
-app.post("/student-profiles", (req, res) => {
+app.post("/child-profiles", asyncRoute(async (req, res) => {
   const input = childProfileSchema.parse(req.body);
-  const studentProfile = createStudentProfile(input);
+  res.status(201).json({ childProfile: await createChildProfile(input) });
+}));
+
+app.post("/student-profiles", asyncRoute(async (req, res) => {
+  const input = childProfileSchema.parse(req.body);
+  const studentProfile = await createStudentProfile(input);
   res.status(201).json({ studentProfile, childProfile: studentProfile });
-});
+}));
 
-app.get("/child-profiles/:childProfileId/home", (req, res) => {
-  res.json(getHome(req.params.childProfileId));
-});
+app.get("/child-profiles/:childProfileId/home", asyncRoute(async (req, res) => {
+  res.json(await getHome(req.params.childProfileId));
+}));
 
-app.get("/student-profiles/:studentProfileId/home", (req, res) => {
-  res.json(getStudentHome(req.params.studentProfileId));
-});
+app.get("/student-profiles/:studentProfileId/home", asyncRoute(async (req, res) => {
+  res.json(await getStudentHome(req.params.studentProfileId));
+}));
 
-app.get("/subjects", (_req, res) => {
-  res.json({ subjects: getSubjects() });
-});
+app.get("/subjects", asyncRoute(async (_req, res) => {
+  res.json({ subjects: await getSubjects() });
+}));
 
-app.get("/subjects/:subjectId", (req, res) => {
-  res.json({ subject: getSubject(req.params.subjectId) });
-});
+app.get("/subjects/:subjectId", asyncRoute(async (req, res) => {
+  res.json({ subject: await getSubject(req.params.subjectId) });
+}));
 
-app.post("/child-profiles/:childProfileId/quests/daily", async (req, res) => {
+app.post("/child-profiles/:childProfileId/quests/daily", asyncRoute(async (req, res) => {
   const body = z.object({ preferredLength: z.number().int().default(8) }).parse(req.body);
   res.status(201).json({ quest: await createDailyQuest(req.params.childProfileId, body.preferredLength) });
-});
+}));
 
-app.post("/student-profiles/:studentProfileId/subjects/:subjectId/quests/daily", async (req, res) => {
+app.post("/student-profiles/:studentProfileId/subjects/:subjectId/quests/daily", asyncRoute(async (req, res) => {
   const body = z.object({ preferredLength: z.number().int().default(8) }).parse(req.body);
   res.status(201).json({ quest: await createSubjectDailyQuest(req.params.studentProfileId, req.params.subjectId, body.preferredLength) });
-});
+}));
 
-app.post("/student-profiles/:studentProfileId/quests/daily", async (req, res) => {
+app.post("/student-profiles/:studentProfileId/quests/daily", asyncRoute(async (req, res) => {
   const body = z.object({ preferredLength: z.number().int().default(8), subjectPreference: z.string().default("auto") }).parse(req.body);
   res.status(201).json({ quest: await createRecommendedDailyQuest(req.params.studentProfileId, body.preferredLength, body.subjectPreference) });
-});
+}));
 
-app.post("/student-profiles/:studentProfileId/quests/subject", async (req, res) => {
+app.post("/student-profiles/:studentProfileId/quests/subject", asyncRoute(async (req, res) => {
   const body = z.object({ subjectKey: z.string(), preferredLength: z.number().int().default(8) }).parse(req.body);
   res.status(201).json({ quest: await createSubjectDailyQuest(req.params.studentProfileId, body.subjectKey, body.preferredLength) });
-});
+}));
 
-app.get("/quests/:questId/next-problem", (req, res) => {
-  res.json({ problem: getNextProblem(req.params.questId) });
-});
+app.get("/quests/:questId/next-problem", asyncRoute(async (req, res) => {
+  res.json({ problem: await getNextProblem(req.params.questId) });
+}));
 
-app.get("/quests/:questId/next-activity", (req, res) => {
-  const activity = getNextActivity(req.params.questId);
+app.get("/quests/:questId/next-activity", asyncRoute(async (req, res) => {
+  const activity = await getNextActivity(req.params.questId);
   res.json({ activity, problem: activity });
-});
+}));
 
-app.post("/problem-attempts/:attemptId/answer", (req, res) => {
+app.post("/problem-attempts/:attemptId/answer", asyncRoute(async (req, res) => {
   const body = z.object({ submittedAnswer: z.string(), timeSpentSeconds: z.number().int().optional() }).parse(req.body);
-  res.json(submitAnswer(req.params.attemptId, body.submittedAnswer, body.timeSpentSeconds));
-});
+  res.json(await submitAnswer(req.params.attemptId, body.submittedAnswer, body.timeSpentSeconds));
+}));
 
-app.post("/activity-attempts/:attemptId/answer", (req, res) => {
+app.post("/activity-attempts/:attemptId/answer", asyncRoute(async (req, res) => {
   const body = z.object({ submittedAnswer: z.string(), timeSpentSeconds: z.number().int().optional() }).parse(req.body);
-  res.json(submitActivityAnswer(req.params.attemptId, body.submittedAnswer, body.timeSpentSeconds));
-});
+  res.json(await submitActivityAnswer(req.params.attemptId, body.submittedAnswer, body.timeSpentSeconds));
+}));
 
-app.post("/problem-attempts/:attemptId/hint", (req, res) => {
+app.post("/problem-attempts/:attemptId/hint", asyncRoute(async (req, res) => {
   const body = z.object({ hintLevel: z.number().int().min(1).max(3) }).parse(req.body);
-  res.json(requestHint(req.params.attemptId, body.hintLevel));
-});
+  res.json(await requestHint(req.params.attemptId, body.hintLevel));
+}));
 
-app.post("/activity-attempts/:attemptId/hint", (req, res) => {
+app.post("/activity-attempts/:attemptId/hint", asyncRoute(async (req, res) => {
   const body = z.object({ hintLevel: z.number().int().min(1).max(3) }).parse(req.body);
-  res.json(requestActivityHint(req.params.attemptId, body.hintLevel));
-});
+  res.json(await requestActivityHint(req.params.attemptId, body.hintLevel));
+}));
 
-app.post("/quests/:questId/complete", (req, res) => {
-  res.json(completeQuest(req.params.questId));
-});
+app.post("/quests/:questId/complete", asyncRoute(async (req, res) => {
+  res.json(await completeQuest(req.params.questId));
+}));
 
-app.post("/child-profiles/:childProfileId/forge/upgrades/:upgradeKey", (req, res) => {
-  res.json(buyForgeUpgrade(req.params.childProfileId, req.params.upgradeKey));
-});
+app.post("/child-profiles/:childProfileId/forge/upgrades/:upgradeKey", asyncRoute(async (req, res) => {
+  res.json(await buyForgeUpgrade(req.params.childProfileId, req.params.upgradeKey));
+}));
 
-app.get("/child-profiles/:childProfileId/parent-summary", (req, res) => {
-  res.json(parentSummary(req.params.childProfileId));
-});
+app.get("/child-profiles/:childProfileId/parent-summary", asyncRoute(async (req, res) => {
+  res.json(await parentSummary(req.params.childProfileId));
+}));
 
-app.get("/student-profiles/:studentProfileId/parent-summary", (req, res) => {
-  res.json(parentSummary(req.params.studentProfileId));
-});
+app.get("/student-profiles/:studentProfileId/parent-summary", asyncRoute(async (req, res) => {
+  res.json(await parentSummary(req.params.studentProfileId));
+}));
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (error instanceof z.ZodError) {

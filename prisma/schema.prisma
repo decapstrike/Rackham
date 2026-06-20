@@ -304,3 +304,13 @@ model ForgeUpgrade {
 
   @@unique([studentProfileId, upgradeKey])
 }
+
+model RoomUpgrade {
+  id          String  @id
+  key         String  @unique
+  subjectKey  String?
+  name        String
+  cost        Int
+  maxLevel    Int
+  isActive    Boolean @default(true)
+}
