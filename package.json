@@ -10,8 +10,11 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "dev:db": "docker compose up -d postgres",
     "dev:api": "npm --workspace @mathforge/api run dev",
-    "dev:mobile": "npm --workspace @mathforge/mobile run start"
+    "dev:mobile": "npm --workspace @mathforge/mobile run start",
+    "db:generate": "npm --workspace @mathforge/api run db:generate",
+    "db:migrate": "npm --workspace @mathforge/api run db:migrate"
   },
   "devDependencies": {
     "typescript": "^5.5.4"

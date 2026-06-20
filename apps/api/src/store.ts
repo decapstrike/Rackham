@@ -166,6 +166,19 @@ export function getNextProblem(questId: string) {
 export function submitAnswer(attemptId: string, submittedAnswer: string, timeSpentSeconds?: number) {
   const attempt = requireAttempt(attemptId);
   const quest = requireQuest(attempt.questId);
+  if (attempt.isCorrect === true) {
+    return {
+      isCorrect: true,
+      correctAnswer: attempt.correctAnswer,
+      feedback: {
+        message: feedbackFor(attempt, attempt.submittedAnswer ?? submittedAnswer, true),
+        tone: "positive"
+      },
+      rewardPreview: { xp: 0, coins: 0 },
+      hintAvailable: false,
+      nextAction: "continue"
+    };
+  }
   const wasWrongBefore = attempt.isCorrect === false;
   const isCorrect = checkAnswer(attempt, submittedAnswer);
   attempt.submittedAnswer = submittedAnswer;

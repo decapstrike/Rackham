@@ -32,6 +32,7 @@ export function HomeScreen({ navigation }: NativeStackScreenProps<RootStackParam
       <Button variant="secondary" onPress={() => navigation.navigate("SkillMap")}>Skill Map</Button>
       <Button variant="secondary" onPress={() => navigation.navigate("Forge")}>Forge Upgrades</Button>
       <Button variant="secondary" onPress={() => navigation.navigate("ParentDashboard")}>Parent Dashboard</Button>
+      <Button variant="secondary" onPress={() => navigation.navigate("Settings")}>Settings</Button>
     </Screen>
   );
 }

@@ -1,0 +1,208 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  parent
+  child
+}
+
+enum Theme {
+  forge
+  fantasy
+  scifi
+  sports
+}
+
+enum TutorTone {
+  coach
+  rival
+  robot
+  guide
+}
+
+enum QuestType {
+  daily
+  skill
+  boss
+  review
+}
+
+enum QuestStatus {
+  not_started
+  in_progress
+  completed
+  abandoned
+}
+
+enum AnswerFormat {
+  multiple_choice
+  numeric
+  text
+}
+
+model User {
+  id          String   @id
+  role        UserRole
+  displayName String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  children ChildProfile[] @relation("ParentChildren")
+}
+
+model ChildProfile {
+  id               String    @id
+  parentUserId     String?
+  displayName      String
+  gradeLevel       Int
+  interests        String[]  @default([])
+  avatarKey        String
+  preferredTheme   Theme     @default(forge)
+  tutorTone        TutorTone @default(coach)
+  dailyGoalMinutes Int       @default(10)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  parent       User?                @relation("ParentChildren", fields: [parentUserId], references: [id])
+  progress     ChildSkillProgress[]
+  quests       Quest[]
+  attempts     ProblemAttempt[]
+  inventory    RewardInventory?
+  forgeUpgrades ForgeUpgrade[]
+
+  @@index([parentUserId])
+}
+
+model SkillDomain {
+  id           String @id
+  name         String
+  slug         String @unique
+  description  String
+  displayOrder Int
+
+  skills Skill[]
+}
+
+model Skill {
+  id           String @id
+  domainId     String
+  name         String
+  slug         String @unique
+  description  String
+  gradeBand    String
+  displayOrder Int
+
+  domain   SkillDomain          @relation(fields: [domainId], references: [id])
+  progress ChildSkillProgress[]
+  attempts ProblemAttempt[]
+
+  @@index([domainId])
+}
+
+model ChildSkillProgress {
+  id                String    @id
+  childProfileId    String
+  skillId           String
+  level             Int       @default(1)
+  xp                Int       @default(0)
+  masteryScore      Float     @default(0)
+  attempts          Int       @default(0)
+  correct           Int       @default(0)
+  streakCorrect     Int       @default(0)
+  streakIncorrect   Int       @default(0)
+  currentDifficulty Int       @default(1)
+  lastPracticedAt   DateTime?
+
+  child ChildProfile @relation(fields: [childProfileId], references: [id], onDelete: Cascade)
+  skill Skill        @relation(fields: [skillId], references: [id])
+
+  @@unique([childProfileId, skillId])
+}
+
+model Quest {
+  id              String      @id
+  childProfileId  String
+  questType       QuestType
+  title           String
+  flavorText      String?
+  presentation    Json?
+  focusSkillId    String
+  status          QuestStatus @default(not_started)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  totalProblems   Int
+  correctProblems Int         @default(0)
+  xpEarned        Int         @default(0)
+  coinsEarned     Int         @default(0)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  child    ChildProfile    @relation(fields: [childProfileId], references: [id], onDelete: Cascade)
+  attempts ProblemAttempt[]
+
+  @@index([childProfileId, status])
+}
+
+model ProblemAttempt {
+  id               String       @id
+  questId          String
+  childProfileId   String
+  skillId          String
+  problemType      String
+  prompt           String
+  answerFormat     AnswerFormat
+  choices          Json?
+  correctAnswer    String
+  submittedAnswer  String?
+  isCorrect        Boolean?
+  difficulty       Int
+  hintsUsed        Int          @default(0)
+  timeSpentSeconds Int?
+  explanation      String
+  hintSequence     String[]
+  metadata         Json
+  createdAt        DateTime     @default(now())
+  answeredAt       DateTime?
+
+  quest Quest        @relation(fields: [questId], references: [id], onDelete: Cascade)
+  child ChildProfile @relation(fields: [childProfileId], references: [id], onDelete: Cascade)
+  skill Skill        @relation(fields: [skillId], references: [id])
+
+  @@index([questId])
+  @@index([childProfileId, answeredAt])
+  @@index([skillId])
+}
+
+model RewardInventory {
+  id              String   @id
+  childProfileId  String   @unique
+  coins           Int      @default(0)
+  xp              Int      @default(0)
+  level           Int      @default(1)
+  unlockedItems   String[] @default([])
+  equippedItems   String[] @default([])
+  streakDays      Int      @default(0)
+  lastCompletedAt DateTime?
+  updatedAt       DateTime @updatedAt
+
+  child ChildProfile @relation(fields: [childProfileId], references: [id], onDelete: Cascade)
+}
+
+model ForgeUpgrade {
+  id             String   @id
+  childProfileId String
+  upgradeKey     String
+  upgradeName    String
+  level          Int      @default(1)
+  purchasedAt    DateTime @default(now())
+
+  child ChildProfile @relation(fields: [childProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([childProfileId, upgradeKey])
+}

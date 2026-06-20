@@ -4,21 +4,32 @@ import { useGameStore } from "../state/useGameStore";
 import { theme } from "../theme/theme";
 
 export function ParentDashboardScreen() {
-  const { attempts, quest } = useGameStore();
-  const correct = attempts.filter((attempt) => attempt.isCorrect).length;
-  const accuracy = attempts.length ? Math.round((correct / attempts.length) * 100) : 0;
+  const { attempts, completedQuestCount, totalProblemsAnswered, totalCorrectAnswers } = useGameStore();
+  const correct = totalCorrectAnswers || attempts.filter((attempt) => attempt.isCorrect).length;
+  const solved = totalProblemsAnswered || attempts.filter((attempt) => attempt.isCorrect).length;
+  const accuracy = solved ? Math.round((correct / solved) * 100) : 0;
+  const hinted = attempts.filter((attempt) => attempt.hintsUsed > 0).length;
+  const needsPractice = attempts.some((attempt) => attempt.problemType === "add_fractions_unlike_denominator" && attempt.hintsUsed > 0)
+    ? "Adding fractions with unlike denominators"
+    : "Equivalent fractions";
   return (
     <Screen>
       <Panel>
         <Text style={styles.metric}>Last 7 days</Text>
-        <Body>Sessions completed: {quest?.status === "completed" ? 1 : 0}</Body>
-        <Body>Problems solved: {attempts.filter((attempt) => attempt.isCorrect).length}</Body>
+        <Body>Sessions completed: {completedQuestCount}</Body>
+        <Body>Problems solved: {solved}</Body>
         <Body>Accuracy: {accuracy}%</Body>
-        <Body>Minutes practiced: {quest?.status === "completed" ? 10 : 0}</Body>
+        <Body>Minutes practiced: {completedQuestCount * 10}</Body>
+      </Panel>
+      <Panel>
+        <Text style={styles.metric}>Skill read</Text>
+        <Body>Strong skill: Equivalent Fractions</Body>
+        <Body>Needs practice: {needsPractice}</Body>
+        <Body>Hints used this run: {hinted}</Body>
       </Panel>
       <Panel>
         <Text style={styles.metric}>Summary</Text>
-        <Body>{attempts.length ? "Strong start. Fraction practice is producing real attempts, and unlike denominators should stay in the next run." : "No completed quest yet. The first run will create a useful summary."}</Body>
+        <Body>{solved ? `Strong start. ${correct} of ${solved} solved problems are correct. Keep the next quest focused on ${needsPractice.toLowerCase()}.` : "No completed quest yet. The first run will create a useful summary."}</Body>
       </Panel>
     </Screen>
   );
