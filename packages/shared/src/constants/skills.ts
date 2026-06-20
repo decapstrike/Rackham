@@ -4,18 +4,20 @@ export const SUBJECT_IDS = {
   math: "subject_math",
   reading: "subject_reading",
   vocabulary: "subject_vocabulary",
+  writing: "subject_writing",
   science: "subject_science",
   history: "subject_history",
-  coding: "subject_coding"
+  studySkills: "subject_study_skills"
 } as const;
 
 export const subjects: Subject[] = [
-  { id: SUBJECT_IDS.math, name: "Math", slug: "math", description: "Deterministic math practice and problem solving.", status: "active", displayOrder: 1 },
-  { id: SUBJECT_IDS.reading, name: "Reading", slug: "reading", description: "Short comprehension practice for daily quests.", status: "active", displayOrder: 2 },
-  { id: SUBJECT_IDS.vocabulary, name: "Vocabulary", slug: "vocabulary", description: "Word meaning and usage practice.", status: "active", displayOrder: 3 },
-  { id: SUBJECT_IDS.science, name: "Science", slug: "science", description: "Future science reasoning activities.", status: "inactive", displayOrder: 4 },
-  { id: SUBJECT_IDS.history, name: "History", slug: "history", description: "Future social studies and history activities.", status: "inactive", displayOrder: 5 },
-  { id: SUBJECT_IDS.coding, name: "Coding", slug: "coding", description: "Future computational thinking activities.", status: "inactive", displayOrder: 6 }
+  { id: SUBJECT_IDS.math, name: "Math", slug: "math", roomName: "Number Forge", description: "Power machines with numbers, patterns, equations, and logic.", status: "active", isActive: true, displayOrder: 1 },
+  { id: SUBJECT_IDS.reading, name: "Reading", slug: "reading", roomName: "Library of Echoes", description: "Decode passages, meanings, main ideas, and hidden details.", status: "active", isActive: true, displayOrder: 2 },
+  { id: SUBJECT_IDS.vocabulary, name: "Vocabulary", slug: "vocabulary", roomName: "Lexicon Vault", description: "Unlock word meanings, roots, context clues, and usage.", status: "active", isActive: true, displayOrder: 3 },
+  { id: SUBJECT_IDS.writing, name: "Writing", slug: "writing", roomName: "Scriptorium", description: "Strengthen sentences, arguments, paragraphs, and stories.", status: "inactive", isActive: false, displayOrder: 4 },
+  { id: SUBJECT_IDS.science, name: "Science", slug: "science", roomName: "Discovery Lab", description: "Investigate living systems, matter, forces, Earth, and space.", status: "inactive", isActive: false, displayOrder: 5 },
+  { id: SUBJECT_IDS.history, name: "History", slug: "history", roomName: "Timeline Hall", description: "Place people, events, causes, and consequences in context.", status: "inactive", isActive: false, displayOrder: 6 },
+  { id: SUBJECT_IDS.studySkills, name: "Study Skills", slug: "study_skills", roomName: "Strategy Room", description: "Build habits for memory, planning, focus, and test readiness.", status: "inactive", isActive: false, displayOrder: 7 }
 ];
 
 const domain = (subjectId: string, slug: string, name: string, description: string, displayOrder: number): Domain => ({
@@ -35,8 +37,13 @@ export const skillDomains: Domain[] = [
   domain(SUBJECT_IDS.math, "negative-numbers", "Negative Numbers", "Integer comparison and operations.", 4),
   domain(SUBJECT_IDS.math, "pre-algebra", "Pre-Algebra", "Variables, expressions, and equations.", 5),
   domain(SUBJECT_IDS.math, "geometry", "Geometry", "Area, perimeter, coordinates, and volume.", 6),
-  domain(SUBJECT_IDS.reading, "reading-comprehension", "Reading Comprehension", "Main idea, sequence, and inference from short passages.", 1),
-  domain(SUBJECT_IDS.vocabulary, "word-meaning", "Word Meaning", "Context clues, synonyms, and precise word usage.", 1)
+  domain(SUBJECT_IDS.reading, "reading-comprehension", "Reading Comprehension", "Main idea, supporting details, and sequence from short passages.", 1),
+  domain(SUBJECT_IDS.reading, "reading-inference", "Inference", "Use clues and text evidence to understand unstated ideas.", 2),
+  domain(SUBJECT_IDS.reading, "reading-vocabulary-context", "Vocabulary in Context", "Determine word meaning from passage clues.", 3),
+  domain(SUBJECT_IDS.vocabulary, "word-meaning", "Word Meaning", "Definitions and precise word usage.", 1),
+  domain(SUBJECT_IDS.vocabulary, "vocabulary-context-clues", "Context Clues", "Use sentence clues to choose fitting words.", 2),
+  domain(SUBJECT_IDS.vocabulary, "synonyms-antonyms", "Synonyms and Antonyms", "Compare words with similar and opposite meanings.", 3),
+  domain(SUBJECT_IDS.vocabulary, "prefixes-suffixes", "Prefixes and Suffixes", "Use word parts to infer meaning and usage.", 4)
 ];
 
 export const domains = skillDomains;
@@ -76,11 +83,16 @@ export const skills: Skill[] = [
   skill(SUBJECT_IDS.math, "domain_geometry", "rectangle-perimeter", "Perimeter of Rectangles", 2),
   skill(SUBJECT_IDS.math, "domain_geometry", "rectangular-prism-volume", "Volume of Rectangular Prisms", 3),
   skill(SUBJECT_IDS.reading, "domain_reading_comprehension", "main-idea", "Main Idea", 1),
-  skill(SUBJECT_IDS.reading, "domain_reading_comprehension", "sequence-events", "Sequence Events", 2),
-  skill(SUBJECT_IDS.reading, "domain_reading_comprehension", "reading-inference", "Reading Inference", 3),
-  skill(SUBJECT_IDS.vocabulary, "domain_word_meaning", "context-clues", "Context Clues", 1),
-  skill(SUBJECT_IDS.vocabulary, "domain_word_meaning", "synonyms", "Synonyms", 2),
-  skill(SUBJECT_IDS.vocabulary, "domain_word_meaning", "word-usage", "Word Usage", 3)
+  skill(SUBJECT_IDS.reading, "domain_reading_comprehension", "supporting-detail", "Supporting Detail", 2),
+  skill(SUBJECT_IDS.reading, "domain_reading_comprehension", "sequence-events", "Sequence Events", 3),
+  skill(SUBJECT_IDS.reading, "domain_reading_inference", "reading-inference", "Reading Inference", 1),
+  skill(SUBJECT_IDS.reading, "domain_reading_vocabulary_context", "reading-context-clues", "Context Clues in Reading", 1),
+  skill(SUBJECT_IDS.vocabulary, "domain_word_meaning", "definition-match", "Match Word to Definition", 1),
+  skill(SUBJECT_IDS.vocabulary, "domain_vocabulary_context_clues", "context-sentence-choice", "Choose Word from Context", 1),
+  skill(SUBJECT_IDS.vocabulary, "domain_synonyms_antonyms", "synonyms", "Synonyms", 1),
+  skill(SUBJECT_IDS.vocabulary, "domain_synonyms_antonyms", "antonyms", "Antonyms", 2),
+  skill(SUBJECT_IDS.vocabulary, "domain_prefixes_suffixes", "prefix-meaning", "Prefix Meaning", 1),
+  skill(SUBJECT_IDS.vocabulary, "domain_word_meaning", "word-usage", "Word Usage", 2)
 ];
 
 export const DEFAULT_FOCUS_SKILL_ID = "skill_equivalent_fractions";

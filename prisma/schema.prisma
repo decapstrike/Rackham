@@ -10,7 +10,7 @@ datasource db {
 enum UserRole {
   parent
   child
-  student
+  admin
 }
 
 enum LearningContentStatus {
@@ -34,9 +34,11 @@ enum TutorTone {
 
 enum QuestType {
   daily
+  subject
   skill
   boss
   review
+  custom
 }
 
 enum QuestStatus {
@@ -50,6 +52,17 @@ enum AnswerFormat {
   multiple_choice
   numeric
   text
+  short_text
+  long_text
+  ordered_list
+  matching_pairs
+  classification_groups
+}
+
+enum ValidationMode {
+  deterministic
+  ai_rubric
+  hybrid
 }
 
 model User {
@@ -67,6 +80,7 @@ model StudentProfile {
   parentUserId     String?
   displayName      String
   gradeLevel       Int
+  age              Int?
   interests        String[]  @default([])
   avatarKey        String
   preferredTheme   Theme     @default(forge)
@@ -89,13 +103,17 @@ model Subject {
   id           String                @id
   name         String
   slug         String                @unique
+  roomName     String
   description  String
   status       LearningContentStatus @default(active)
+  isActive     Boolean               @default(true)
   displayOrder Int
 
-  domains SkillDomain[]
-  skills  Skill[]
-  quests  Quest[]
+  domains   SkillDomain[]
+  skills    Skill[]
+  templates ActivityTemplate[]
+  quests    Quest[]
+  attempts  ActivityAttempt[]
 }
 
 model SkillDomain {
@@ -107,8 +125,10 @@ model SkillDomain {
   status       LearningContentStatus @default(active)
   displayOrder Int
 
-  subject Subject @relation(fields: [subjectId], references: [id])
-  skills  Skill[]
+  subject   Subject            @relation(fields: [subjectId], references: [id])
+  skills    Skill[]
+  templates ActivityTemplate[]
+  attempts  ActivityAttempt[]
 
   @@index([subjectId])
 }
@@ -126,8 +146,9 @@ model Skill {
 
   subject  Subject                @relation(fields: [subjectId], references: [id])
   domain   SkillDomain            @relation(fields: [domainId], references: [id])
-  progress StudentSkillProgress[]
-  attempts ActivityAttempt[]
+  progress  StudentSkillProgress[]
+  templates ActivityTemplate[]
+  attempts  ActivityAttempt[]
 
   @@index([subjectId])
   @@index([domainId])
@@ -153,18 +174,50 @@ model StudentSkillProgress {
   @@unique([studentProfileId, skillId])
 }
 
+model ActivityTemplate {
+  id              String                @id
+  subjectId       String
+  domainId        String
+  skillId         String
+  activityType    String
+  key             String                @unique
+  title           String
+  description     String
+  answerFormat    AnswerFormat
+  difficultyMin   Int
+  difficultyMax   Int
+  generatorKey    String?
+  validatorKey    String?
+  aiAssistAllowed Boolean               @default(false)
+  status          LearningContentStatus @default(active)
+  isActive        Boolean               @default(true)
+
+  subject  Subject          @relation(fields: [subjectId], references: [id])
+  domain   SkillDomain      @relation(fields: [domainId], references: [id])
+  skill    Skill            @relation(fields: [skillId], references: [id])
+  attempts ActivityAttempt[]
+
+  @@index([subjectId])
+  @@index([domainId])
+  @@index([skillId])
+}
+
 model Quest {
   id               String      @id
   studentProfileId String
-  subjectId        String
+  primarySubjectId String
   questType        QuestType
   title            String
+  description      String?
   flavorText       String?
   presentation     Json?
-  focusSkillId     String
+  focusSkillId     String?
   status           QuestStatus @default(not_started)
   startedAt        DateTime?
   completedAt      DateTime?
+  totalActivities  Int
+  completedActivities Int      @default(0)
+  correctActivities   Int      @default(0)
   totalProblems    Int
   correctProblems  Int         @default(0)
   xpEarned         Int         @default(0)
@@ -173,25 +226,33 @@ model Quest {
   updatedAt        DateTime    @updatedAt
 
   student  StudentProfile    @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
-  subject  Subject           @relation(fields: [subjectId], references: [id])
+  subject  Subject           @relation(fields: [primarySubjectId], references: [id])
   attempts ActivityAttempt[]
 
   @@index([studentProfileId, status])
-  @@index([subjectId])
+  @@index([primarySubjectId])
 }
 
 model ActivityAttempt {
   id               String       @id
   questId          String
   studentProfileId String
+  subjectId        String
+  domainId         String
   skillId          String
+  activityTemplateId String?
   activityType     String
   prompt           String
+  stimulus         Json?
   answerFormat     AnswerFormat
   choices          Json?
-  correctAnswer    String
-  submittedAnswer  String?
+  correctAnswer    Json?
+  validationMode   ValidationMode @default(deterministic)
+  rubric           Json?
+  submittedAnswer  Json?
   isCorrect        Boolean?
+  score            Float?
+  maxScore         Float?
   difficulty       Int
   hintsUsed        Int          @default(0)
   timeSpentSeconds Int?
@@ -203,10 +264,15 @@ model ActivityAttempt {
 
   quest   Quest          @relation(fields: [questId], references: [id], onDelete: Cascade)
   student StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  subject Subject        @relation(fields: [subjectId], references: [id])
+  domain  SkillDomain    @relation(fields: [domainId], references: [id])
   skill   Skill          @relation(fields: [skillId], references: [id])
+  template ActivityTemplate? @relation(fields: [activityTemplateId], references: [id])
 
   @@index([questId])
   @@index([studentProfileId, answeredAt])
+  @@index([subjectId])
+  @@index([domainId])
   @@index([skillId])
 }
 
@@ -230,6 +296,7 @@ model ForgeUpgrade {
   studentProfileId String
   upgradeKey       String
   upgradeName      String
+  roomKey          String?
   level            Int      @default(1)
   purchasedAt      DateTime @default(now())
 

@@ -1,4 +1,4 @@
-import type { AnswerFormat } from "@learningforge/shared";
+import { SUBJECT_IDS, activityTemplates, type AnswerFormat } from "@learningforge/shared";
 
 export type LearningSubjectId = "math" | "reading" | "vocabulary";
 
@@ -158,11 +158,16 @@ export const displayActivities: DisplayActivity[] = [
 ];
 
 export function subjectNameFor(id?: string) {
+  if (id === SUBJECT_IDS.math) return "Math";
+  if (id === SUBJECT_IDS.reading) return "Reading";
+  if (id === SUBJECT_IDS.vocabulary) return "Vocabulary";
   return learningSubjects.find((subject) => subject.id === id)?.name ?? "Math";
 }
 
 export function activityTitle(activityType?: string) {
   if (!activityType) return "Activity";
+  const template = activityTemplates.find((item) => item.activityType === activityType);
+  if (template) return template.title;
   return activityType
     .split("_")
     .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))

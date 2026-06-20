@@ -27,13 +27,19 @@ export const MATH_ACTIVITY_TYPES = [
 
 export const READING_ACTIVITY_TYPES = [
   "reading_main_idea_multiple_choice",
+  "reading_supporting_detail_multiple_choice",
   "reading_sequence_events",
-  "reading_inference_multiple_choice"
+  "reading_inference_multiple_choice",
+  "reading_context_clue_multiple_choice"
 ] as const satisfies readonly ReadingActivityType[];
 
 export const VOCABULARY_ACTIVITY_TYPES = [
+  "vocabulary_definition_match",
   "vocabulary_context_clue_multiple_choice",
+  "vocabulary_context_sentence_choice",
   "vocabulary_synonym_multiple_choice",
+  "vocabulary_antonym_choice",
+  "vocabulary_prefix_meaning_choice",
   "vocabulary_word_usage_text"
 ] as const satisfies readonly VocabularyActivityType[];
 
@@ -49,19 +55,25 @@ const template = (
   domainId: string,
   skillId: string,
   title: string,
-  answerFormat: ActivityTemplate["answerFormat"]
+  answerFormat: ActivityTemplate["answerFormat"],
+  aiAssistAllowed = false
 ): ActivityTemplate => ({
   id: `template_${activityType}`,
   subjectId,
   domainId,
   skillId,
   activityType,
+  key: activityType,
   title,
   description: title,
   answerFormat,
   difficultyMin: 1,
   difficultyMax: 5,
-  status: "active"
+  generatorKey: activityType,
+  validatorKey: answerFormat,
+  aiAssistAllowed,
+  status: "active",
+  isActive: true
 });
 
 const mathTemplateConfig = {
@@ -96,11 +108,17 @@ export const mathActivityTemplates = MATH_ACTIVITY_TYPES.map((activityType) => {
 export const activityTemplates: ActivityTemplate[] = [
   ...mathActivityTemplates,
   template("reading_main_idea_multiple_choice", SUBJECT_IDS.reading, "domain_reading_comprehension", "skill_main_idea", "Find the main idea", "multiple_choice"),
-  template("reading_sequence_events", SUBJECT_IDS.reading, "domain_reading_comprehension", "skill_sequence_events", "Put events in order", "multiple_choice"),
-  template("reading_inference_multiple_choice", SUBJECT_IDS.reading, "domain_reading_comprehension", "skill_reading_inference", "Make an inference", "multiple_choice"),
-  template("vocabulary_context_clue_multiple_choice", SUBJECT_IDS.vocabulary, "domain_word_meaning", "skill_context_clues", "Use context clues", "multiple_choice"),
-  template("vocabulary_synonym_multiple_choice", SUBJECT_IDS.vocabulary, "domain_word_meaning", "skill_synonyms", "Choose a synonym", "multiple_choice"),
-  template("vocabulary_word_usage_text", SUBJECT_IDS.vocabulary, "domain_word_meaning", "skill_word_usage", "Use the word correctly", "text")
+  template("reading_supporting_detail_multiple_choice", SUBJECT_IDS.reading, "domain_reading_comprehension", "skill_supporting_detail", "Find a supporting detail", "multiple_choice"),
+  template("reading_sequence_events", SUBJECT_IDS.reading, "domain_reading_comprehension", "skill_sequence_events", "Put events in order", "ordered_list"),
+  template("reading_inference_multiple_choice", SUBJECT_IDS.reading, "domain_reading_inference", "skill_reading_inference", "Make an inference", "multiple_choice"),
+  template("reading_context_clue_multiple_choice", SUBJECT_IDS.reading, "domain_reading_vocabulary_context", "skill_reading_context_clues", "Use passage context clues", "multiple_choice"),
+  template("vocabulary_definition_match", SUBJECT_IDS.vocabulary, "domain_word_meaning", "skill_definition_match", "Match a word to its definition", "multiple_choice"),
+  template("vocabulary_context_clue_multiple_choice", SUBJECT_IDS.vocabulary, "domain_vocabulary_context_clues", "skill_context_sentence_choice", "Use context clues", "multiple_choice"),
+  template("vocabulary_context_sentence_choice", SUBJECT_IDS.vocabulary, "domain_vocabulary_context_clues", "skill_context_sentence_choice", "Choose the word from context", "multiple_choice"),
+  template("vocabulary_synonym_multiple_choice", SUBJECT_IDS.vocabulary, "domain_synonyms_antonyms", "skill_synonyms", "Choose a synonym", "multiple_choice"),
+  template("vocabulary_antonym_choice", SUBJECT_IDS.vocabulary, "domain_synonyms_antonyms", "skill_antonyms", "Choose an antonym", "multiple_choice"),
+  template("vocabulary_prefix_meaning_choice", SUBJECT_IDS.vocabulary, "domain_prefixes_suffixes", "skill_prefix_meaning", "Use a prefix to infer meaning", "multiple_choice"),
+  template("vocabulary_word_usage_text", SUBJECT_IDS.vocabulary, "domain_word_meaning", "skill_word_usage", "Use the word correctly", "text", true)
 ];
 
 export function isActivityType(value: string): value is ActivityType {

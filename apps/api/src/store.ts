@@ -14,6 +14,7 @@ import {
   skills,
   subjects,
   validateDailyQuestPlan,
+  validateActivityAnswer,
   type ActivityType,
   type ChildProfile,
   type ChildSkillProgress,
@@ -126,6 +127,29 @@ export function getHome(childProfileId: string) {
   const inventory = requireInventory(childProfileId);
   const level = levelFromXp(inventory.xp);
   const existingDaily = [...store.quests.values()].find((quest) => quest.childProfileId === childProfileId && quest.questType === "daily" && quest.status !== "completed");
+  const activeSubjectSummaries = subjects.filter((subject) => subject.status === "active").map((subject) => {
+    const subjectSkills = skills.filter((skill) => skill.subjectId === subject.id);
+    const progressItems = subjectSkills.map((skill) => store.progress.get(`${childProfileId}:${skill.id}`)).filter((item): item is ChildSkillProgress => Boolean(item));
+    const mastery = progressItems.length ? progressItems.reduce((sum, item) => sum + item.masteryScore, 0) / progressItems.length : 0;
+    const xp = progressItems.reduce((sum, item) => sum + item.xp, 0);
+    return {
+      subjectId: subject.id,
+      key: subject.slug,
+      name: subject.name,
+      roomName: subject.roomName,
+      masteryScore: Number(mastery.toFixed(2)),
+      level: levelFromXp(xp).level
+    };
+  });
+  const dailyQuest = {
+    available: true,
+    questId: existingDaily?.id,
+    title: existingDaily?.title ?? "Daily LearningForge Quest",
+    presentation: existingDaily?.presentation,
+    estimatedMinutes: child.dailyGoalMinutes,
+    primarySubject: "Mixed",
+    focusSkill: "Equivalent Fractions"
+  };
   return {
     child: {
       id: child.id,
@@ -135,14 +159,9 @@ export function getHome(childProfileId: string) {
       xpToNextLevel: level.xpToNextLevel,
       coins: inventory.coins
     },
-    dailyQuest: {
-      available: true,
-      questId: existingDaily?.id,
-      title: existingDaily?.title ?? "Daily LearningForge Quest",
-      presentation: existingDaily?.presentation,
-      estimatedMinutes: child.dailyGoalMinutes,
-      focusSkill: "Equivalent Fractions"
-    },
+    dailyQuest,
+    recommendedQuest: dailyQuest,
+    subjects: activeSubjectSummaries,
     skillProgress: skills.slice(0, 8).map((skill) => {
       const progress = store.progress.get(`${childProfileId}:${skill.id}`)!;
       return { skillId: skill.id, name: skill.name, level: progress.level, masteryScore: progress.masteryScore };
@@ -155,12 +174,24 @@ export function getHome(childProfileId: string) {
 export const getStudentHome = getHome;
 
 export async function createDailyQuest(childProfileId: string, preferredLength = 8) {
-  return createSubjectDailyQuest(childProfileId, SUBJECT_IDS.math, preferredLength);
+  return createRecommendedDailyQuest(childProfileId, preferredLength, "auto");
+}
+
+export async function createRecommendedDailyQuest(studentProfileId: string, preferredLength = 8, subjectPreference = "auto") {
+  if (subjectPreference !== "auto") {
+    return createSubjectDailyQuest(studentProfileId, subjectPreference, preferredLength);
+  }
+  const plan = buildRecommendedQuestPlan(preferredLength);
+  return createQuestFromPlan(studentProfileId, plan, "daily");
 }
 
 export async function createSubjectDailyQuest(studentProfileId: string, subjectId: string, preferredLength = 8) {
   const subject = getSubject(subjectId);
   const plan = buildSubjectQuestPlan(subject.id, preferredLength);
+  return createQuestFromPlan(studentProfileId, plan, "daily");
+}
+
+async function createQuestFromPlan(studentProfileId: string, plan: ReturnType<typeof buildSubjectQuestPlan>, questType: Quest["questType"]) {
   const child = requireChild(studentProfileId);
   const focusSkillId = plan[0]?.skillId ?? DEFAULT_FOCUS_SKILL_ID;
   const focusSkill = skills.find((skill) => skill.id === focusSkillId) ?? skills[0];
@@ -168,7 +199,7 @@ export async function createSubjectDailyQuest(studentProfileId: string, subjectI
   const quest: Quest = {
     id: id("quest"),
     childProfileId: studentProfileId,
-    questType: "daily",
+    questType,
     title: presentation.title,
     flavorText: presentation.flavor,
     presentation,
@@ -344,8 +375,20 @@ export function parentSummary(childProfileId: string) {
     period: "7d",
     sessionsCompleted: quests.length,
     totalProblems,
+    totalActivities: totalProblems,
     accuracy: totalProblems ? Number((correct / totalProblems).toFixed(2)) : 0,
     minutesPracticed: quests.length * 10,
+    subjects: subjects.filter((subject) => subject.status === "active").map((subject) => {
+      const subjectAttempts = attempts.filter((attempt) => attempt.subjectId === subject.id);
+      const subjectCorrect = subjectAttempts.filter((attempt) => attempt.isCorrect).length;
+      return {
+        subjectKey: subject.slug,
+        name: subject.name,
+        activitiesCompleted: subjectAttempts.length,
+        accuracy: subjectAttempts.length ? Number((subjectCorrect / subjectAttempts.length).toFixed(2)) : 0,
+        needsPractice: skillStats.filter((item) => item.skill.subjectId === subject.id && item.accuracy < 0.75).map((item) => item.skill.name).slice(0, 2)
+      };
+    }),
     strongSkills,
     needsPractice: needsPractice.length ? needsPractice : ["Adding Fractions with Unlike Denominators"],
     summary: totalProblems
@@ -353,6 +396,8 @@ export function parentSummary(childProfileId: string) {
       : "No completed quest yet. The first daily quest will give a clearer read on strengths and practice needs.",
     recommendedNextQuest: {
       title: "Common Denominator Repair Run",
+      subjectKey: "math",
+      focusSkillKey: "add-fractions-unlike-denominators",
       focusSkillId: "skill_add_fractions_unlike_denominators"
     }
   };
@@ -419,11 +464,30 @@ function buildSubjectQuestPlan(subjectId: string, preferredLength: number) {
   });
 }
 
+function buildRecommendedQuestPlan(preferredLength: number) {
+  if (preferredLength !== 8) {
+    throw new Error("Daily quest must contain exactly 8 activities.");
+  }
+  const mathPlan = buildSubjectQuestPlan(SUBJECT_IDS.math, 8).slice(0, 3);
+  const readingTemplates = activityTemplates.filter((template) => template.subjectId === SUBJECT_IDS.reading && template.status === "active");
+  const vocabularyTemplates = activityTemplates.filter((template) => template.subjectId === SUBJECT_IDS.vocabulary && template.status === "active");
+  const mixedTemplates = [...readingTemplates.slice(0, 3), ...vocabularyTemplates.slice(0, 2)];
+  return [
+    ...mathPlan,
+    ...mixedTemplates.map((template, index) => ({
+      activityType: template.activityType,
+      difficulty: index === mixedTemplates.length - 1 ? 2 : 1,
+      role: index < 3 ? "focus" : "review",
+      skillId: template.skillId
+    }))
+  ];
+}
+
 function checkActivityAnswer(attempt: ActivityAttempt, submittedAnswer: string) {
   if (attempt.subjectId === SUBJECT_IDS.math && attempt.problemType) {
     return checkAnswer(attempt as ProblemAttempt, submittedAnswer);
   }
-  return attempt.correctAnswer.trim().toLowerCase() === submittedAnswer.trim().toLowerCase();
+  return validateActivityAnswer(attempt, submittedAnswer).isCorrect;
 }
 
 function requireChild(childProfileId: string) {

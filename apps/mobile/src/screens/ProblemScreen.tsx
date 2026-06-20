@@ -26,9 +26,11 @@ export function ProblemScreen({ navigation }: NativeStackScreenProps<RootStackPa
   const answeredCorrectly = activeFeedback?.isCorrect;
   const subjectName = subjectNameFor(activity.subjectId);
   const title = selectedActivity?.title ?? activityTitle(activity.activityType);
+  const activityOrder = Number(activity.metadata.order) || currentIndex + 1;
+  const activityRole = typeof activity.metadata.questRole === "string" ? activity.metadata.questRole : "practice";
   const progressLabel = isPreview
     ? `${subjectName} preview`
-    : `Activity ${currentIndex + 1} of ${attempts.length} · ${String(activity.metadata.questRole)}`;
+    : `Activity ${activityOrder} of ${attempts.length} · ${subjectName} · ${activityRole}`;
 
   const handleSubmit = () => {
     if (isPreview) {

@@ -1,4 +1,4 @@
-# MathForge Infrastructure
+# LearningForge Infrastructure
 
 This directory is reserved for infrastructure planning and future infrastructure-as-code. No deployment resources are active yet.
 

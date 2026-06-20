@@ -1,16 +1,54 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { answerReward, avatarOptions, buildDailyQuestPlan, checkAnswer, generateProblem, levelFromXp, rewardRules, skills, worldForTheme, type AvatarKey, type ChildProfile, type ProblemAttempt, type Quest } from "@learningforge/shared";
+import {
+  SUBJECT_IDS,
+  activityTemplates,
+  answerReward,
+  avatarOptions,
+  buildDailyQuestPlan,
+  checkAnswer,
+  generateActivity,
+  levelFromXp,
+  rewardRules,
+  skills,
+  validateActivityAnswer,
+  worldForTheme,
+  type ActivityType,
+  type AvatarKey,
+  type ChildProfile,
+  type GeneratedActivity,
+  type ProblemAttempt,
+  type Quest
+} from "@learningforge/shared";
 import type { DisplayActivity } from "../content/learningContent";
 
 type Feedback = { message: string; isCorrect: boolean } | null;
+type LocalQuestMode = "mixed" | "math" | "reading" | "vocabulary";
+type LocalQuestAttempt = GeneratedActivity & {
+  id: string;
+  questId: string;
+  childProfileId: string;
+  submittedAnswer?: string;
+  isCorrect?: boolean;
+  hintsUsed: number;
+  timeSpentSeconds?: number;
+  createdAt: string;
+  answeredAt?: string;
+  problemType?: ProblemAttempt["problemType"];
+};
+
+type LocalQuestPlanItem = {
+  activityType: ActivityType;
+  difficulty: number;
+  role: "focus" | "review" | "challenge";
+};
 
 type GameState = {
   child?: ChildProfile;
   quest?: Quest;
   selectedActivity?: DisplayActivity;
-  attempts: ProblemAttempt[];
+  attempts: LocalQuestAttempt[];
   currentIndex: number;
   feedback: Feedback;
   xp: number;
@@ -21,7 +59,7 @@ type GameState = {
   totalCorrectAnswers: number;
   lastCompletedAt?: string;
   createProfile: (input: Pick<ChildProfile, "displayName" | "gradeLevel" | "preferredTheme" | "tutorTone" | "dailyGoalMinutes"> & { interests?: string[]; avatarKey?: AvatarKey }) => void;
-  startQuest: () => void;
+  startQuest: (mode?: LocalQuestMode) => void;
   selectActivity: (activity: DisplayActivity) => void;
   clearSelectedActivity: () => void;
   submitAnswer: (answer: string) => void;
@@ -64,32 +102,30 @@ export const useGameStore = create<GameState>()(
           }
         });
       },
-      startQuest: () => {
+      startQuest: (mode = "mixed") => {
         const child = get().child;
         if (!child) return;
-        const plan = buildDailyQuestPlan();
+        const plan = buildLocalQuestPlan(mode);
         const world = worldForTheme(child.preferredTheme);
+        const title = localQuestTitle(child, mode);
         const quest: Quest = {
           id: id("quest"),
           childProfileId: child.id,
           questType: "daily",
-          title: localQuestTitle(child),
+          title,
           flavorText: `Explore ${world.worldName}: ${world.backdrop}. Eight quick activities power the next gate.`,
-          focusSkillId: "skill_equivalent_fractions",
+          focusSkillId: focusSkillIdFor(mode),
           status: "in_progress",
           startedAt: now(),
-          totalProblems: 8,
+          totalProblems: plan.length,
           correctProblems: 0,
           xpEarned: 0,
           coinsEarned: 0
         };
         const attempts = plan.map((item, index) => {
-          const generated = generateProblem(item.problemType, { difficulty: item.difficulty, seed: index });
+          const generated = generateActivity(item.activityType, { difficulty: item.difficulty, seed: index });
           return {
             ...generated,
-            subjectId: "math",
-            domainId: "math-fractions",
-            activityType: generated.problemType,
             id: id("attempt"),
             questId: quest.id,
             childProfileId: child.id,
@@ -106,10 +142,10 @@ export const useGameStore = create<GameState>()(
         const state = get();
         const attempt = state.attempts[state.currentIndex];
         if (!attempt || attempt.isCorrect === true) return;
-        const isCorrect = checkAnswer(attempt, answer);
+        const isCorrect = checkLocalAnswer(attempt, answer);
         const wasIncorrectThenCorrected = attempt.isCorrect === false && isCorrect;
         const reward = answerReward({ isCorrect, hintsUsed: attempt.hintsUsed, wasIncorrectThenCorrected });
-        const updatedAttempt: ProblemAttempt = {
+        const updatedAttempt: LocalQuestAttempt = {
           ...attempt,
           submittedAnswer: answer,
           isCorrect,
@@ -217,12 +253,65 @@ export function currentLevel(xp: number) {
 export const visibleSkills = skills.slice(0, 12);
 export const visibleAvatars = avatarOptions;
 
-function localQuestTitle(child: ChildProfile) {
+function localQuestTitle(child: ChildProfile, mode: LocalQuestMode) {
+  if (mode === "reading") return "Reading Preview Quest";
+  if (mode === "vocabulary") return "Vocabulary Preview Quest";
+  if (mode === "mixed") return "Daily LearningForge Quest";
   const world = worldForTheme(child.preferredTheme);
   if (child.preferredTheme === "scifi") return "Stabilize the Equivalent Fractions Reactor";
   if (child.preferredTheme === "fantasy") return "Reforge the Equivalent Fractions Gate";
   if (child.preferredTheme === "sports" || child.interests.some((interest) => interest.toLowerCase() === "soccer")) return "Run the Equivalent Fractions Playbook";
   return `${capitalize(world.primaryActionVerb)} the Equivalent Fractions Furnace`;
+}
+
+function buildLocalQuestPlan(mode: LocalQuestMode): LocalQuestPlanItem[] {
+  if (mode === "math") {
+    return buildDailyQuestPlan().map((item) => ({ activityType: item.problemType, difficulty: item.difficulty, role: item.role }));
+  }
+
+  const subjectId = mode === "reading"
+    ? SUBJECT_IDS.reading
+    : mode === "vocabulary"
+      ? SUBJECT_IDS.vocabulary
+      : undefined;
+  const templates = subjectId
+    ? activityTemplates.filter((template) => template.subjectId === subjectId && template.status === "active")
+    : [
+        templateFor("equivalent_fraction_multiple_choice"),
+        templateFor("reading_main_idea_multiple_choice"),
+        templateFor("vocabulary_context_clue_multiple_choice"),
+        templateFor("simplify_fraction"),
+        templateFor("reading_sequence_events"),
+        templateFor("vocabulary_synonym_multiple_choice"),
+        templateFor("compare_fractions"),
+        templateFor("vocabulary_word_usage_text")
+      ].filter((template) => template !== undefined);
+
+  return Array.from({ length: 8 }, (_, index) => {
+    const template = templates[index % templates.length];
+    return {
+      activityType: template.activityType,
+      difficulty: index === 7 ? 2 : 1,
+      role: index < 5 ? "focus" : index < 7 ? "review" : "challenge"
+    };
+  });
+}
+
+function templateFor(activityType: ActivityType) {
+  return activityTemplates.find((template) => template.activityType === activityType);
+}
+
+function focusSkillIdFor(mode: LocalQuestMode) {
+  if (mode === "reading") return "skill_main_idea";
+  if (mode === "vocabulary") return "skill_context_sentence_choice";
+  return "skill_equivalent_fractions";
+}
+
+function checkLocalAnswer(attempt: LocalQuestAttempt, submittedAnswer: string) {
+  if (attempt.subjectId === SUBJECT_IDS.math && attempt.problemType) {
+    return checkAnswer(attempt as ProblemAttempt, submittedAnswer);
+  }
+  return validateActivityAnswer(attempt, submittedAnswer).isCorrect;
 }
 
 function capitalize(value: string) {

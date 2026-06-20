@@ -1,16 +1,30 @@
-export type UserRole = "parent" | "child";
+export type UserRole = "parent" | "child" | "admin";
 export type Theme = "forge" | "fantasy" | "scifi" | "sports";
 export type TutorTone = "coach" | "rival" | "robot" | "guide";
-export type AnswerFormat = "multiple_choice" | "numeric" | "text";
+export type ActivityTypeKind =
+  | "multiple_choice"
+  | "numeric_input"
+  | "short_text"
+  | "fill_blank"
+  | "matching"
+  | "ordering"
+  | "classification"
+  | "passage_question"
+  | "rewrite"
+  | "reflection";
+export type AnswerFormat = "multiple_choice" | "numeric" | "text" | "short_text" | "long_text" | "ordered_list" | "matching_pairs" | "classification_groups";
 export type AvatarKey = "ember_smith" | "rune_ranger" | "star_mage" | "gear_knight";
 export type LearningContentStatus = "active" | "inactive";
+export type ValidationMode = "deterministic" | "ai_rubric" | "hybrid";
 
 export type Subject = {
   id: string;
   name: string;
   slug: string;
+  roomName: string;
   description: string;
   status: LearningContentStatus;
+  isActive: boolean;
   displayOrder: number;
 };
 
@@ -19,6 +33,7 @@ export type ChildProfile = {
   parentUserId?: string;
   displayName: string;
   gradeLevel: number;
+  age?: number;
   interests: string[];
   avatarKey: AvatarKey;
   preferredTheme: Theme;
@@ -27,6 +42,8 @@ export type ChildProfile = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type StudentProfile = ChildProfile;
 
 export type SkillDomain = {
   id: string;
@@ -103,12 +120,39 @@ export type ActivityTemplate = {
   domainId: string;
   skillId: string;
   activityType: ActivityType;
+  key?: string;
   title: string;
   description: string;
   answerFormat: AnswerFormat;
   difficultyMin: number;
   difficultyMax: number;
+  generatorKey?: string;
+  validatorKey?: string;
+  aiAssistAllowed: boolean;
   status: LearningContentStatus;
+  isActive: boolean;
+};
+
+export type ActivityStimulus = {
+  type: "text" | "passage" | "image" | "table" | "diagram" | "audio_placeholder";
+  title?: string;
+  content: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type ActivityChoice = {
+  id: string;
+  text: string;
+};
+
+export type ActivityRubric = {
+  criteria: Array<{
+    key: string;
+    description: string;
+    maxPoints: number;
+  }>;
+  totalPoints: number;
+  studentFriendlyDescription: string;
 };
 
 export type GeneratedActivity = {
@@ -117,9 +161,12 @@ export type GeneratedActivity = {
   skillId: string;
   activityType: ActivityType;
   prompt: string;
+  stimulus?: ActivityStimulus;
   answerFormat: AnswerFormat;
-  choices?: Array<{ id: string; text: string }>;
+  choices?: ActivityChoice[];
   correctAnswer: string;
+  validationMode?: ValidationMode;
+  rubric?: ActivityRubric;
   explanation: string;
   hintSequence: string[];
   difficulty: number;
@@ -155,12 +202,18 @@ export type ProblemType =
 
 export type ReadingActivityType =
   | "reading_main_idea_multiple_choice"
+  | "reading_supporting_detail_multiple_choice"
   | "reading_sequence_events"
-  | "reading_inference_multiple_choice";
+  | "reading_inference_multiple_choice"
+  | "reading_context_clue_multiple_choice";
 
 export type VocabularyActivityType =
+  | "vocabulary_definition_match"
   | "vocabulary_context_clue_multiple_choice"
+  | "vocabulary_context_sentence_choice"
   | "vocabulary_synonym_multiple_choice"
+  | "vocabulary_antonym_choice"
+  | "vocabulary_prefix_meaning_choice"
   | "vocabulary_word_usage_text";
 
 export type ActivityType = ProblemType | ReadingActivityType | VocabularyActivityType;

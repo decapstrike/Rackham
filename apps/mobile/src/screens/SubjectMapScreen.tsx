@@ -27,7 +27,7 @@ export function SubjectMapScreen({ navigation }: { navigation: NativeStackNaviga
             room={selectedRoom.room}
             onBack={() => setSelectedRoom(null)}
             onStartQuest={() => {
-              startQuest();
+              startQuest(subject.id);
               navigation.navigate("Problem");
             }}
             onOpenActivity={() => navigation.navigate("Problem")}

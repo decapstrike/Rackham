@@ -6,6 +6,7 @@ import {
   completeQuest,
   createChildProfile,
   createDailyQuest,
+  createRecommendedDailyQuest,
   createStudentProfile,
   createSubjectDailyQuest,
   getHome,
@@ -73,6 +74,16 @@ app.post("/child-profiles/:childProfileId/quests/daily", async (req, res) => {
 app.post("/student-profiles/:studentProfileId/subjects/:subjectId/quests/daily", async (req, res) => {
   const body = z.object({ preferredLength: z.number().int().default(8) }).parse(req.body);
   res.status(201).json({ quest: await createSubjectDailyQuest(req.params.studentProfileId, req.params.subjectId, body.preferredLength) });
+});
+
+app.post("/student-profiles/:studentProfileId/quests/daily", async (req, res) => {
+  const body = z.object({ preferredLength: z.number().int().default(8), subjectPreference: z.string().default("auto") }).parse(req.body);
+  res.status(201).json({ quest: await createRecommendedDailyQuest(req.params.studentProfileId, body.preferredLength, body.subjectPreference) });
+});
+
+app.post("/student-profiles/:studentProfileId/quests/subject", async (req, res) => {
+  const body = z.object({ subjectKey: z.string(), preferredLength: z.number().int().default(8) }).parse(req.body);
+  res.status(201).json({ quest: await createSubjectDailyQuest(req.params.studentProfileId, body.subjectKey, body.preferredLength) });
 });
 
 app.get("/quests/:questId/next-problem", (req, res) => {

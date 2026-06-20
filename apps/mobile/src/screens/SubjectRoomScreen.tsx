@@ -27,11 +27,11 @@ export function SubjectRoomScreen({ subject, room, onBack, onStartQuest, onOpenA
         <Body>{room.description}</Body>
         <Text style={styles.status}>{statusLabel(room.status)}</Text>
       </Panel>
-      {subject.id === "math" && room.status === "ready" ? (
+      {room.status !== "locked" ? (
         <Panel>
-          <Text style={styles.activityTitle}>Daily Quest</Text>
-          <Body>Play the current local quest with rewards and progress.</Body>
-          <Button onPress={onStartQuest}>Start Daily Quest</Button>
+          <Text style={styles.activityTitle}>{subject.id === "math" ? "Daily Quest" : "Preview Quest"}</Text>
+          <Body>Play a local {subject.name.toLowerCase()} quest with rewards and progress.</Body>
+          <Button onPress={onStartQuest}>{subject.id === "math" ? "Start Daily Quest" : "Start Preview Quest"}</Button>
         </Panel>
       ) : null}
       {activities.map((activity) => (

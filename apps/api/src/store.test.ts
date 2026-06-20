@@ -52,7 +52,7 @@ describe("LearningForge store quest lifecycle", () => {
     expect(summary.totalProblems).toBe(8);
   });
 
-  it("creates exactly the MVP daily quest composition", async () => {
+  it("creates the MVP mixed-subject daily quest composition", async () => {
     const child = createTestChild();
 
     await expect(createDailyQuest(child.id, 7)).rejects.toThrow("Daily quest must contain exactly");
@@ -61,9 +61,9 @@ describe("LearningForge store quest lifecycle", () => {
 
     expect(attempts).toHaveLength(8);
     expect(attempts.map((attempt) => attempt.metadata.order)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
-    expect(attempts.filter((attempt) => attempt.metadata.questRole === "focus")).toHaveLength(5);
+    expect(new Set(attempts.map((attempt) => attempt.subjectId))).toEqual(new Set(["subject_math", "subject_reading", "subject_vocabulary"]));
+    expect(attempts.filter((attempt) => attempt.metadata.questRole === "focus")).toHaveLength(6);
     expect(attempts.filter((attempt) => attempt.metadata.questRole === "review")).toHaveLength(2);
-    expect(attempts.filter((attempt) => attempt.metadata.questRole === "challenge")).toHaveLength(1);
     expect(getNextProblem(quest.id)?.progress).toEqual({ current: 1, total: 8 });
   });
 
