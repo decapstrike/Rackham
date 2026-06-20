@@ -1,0 +1,19 @@
+{
+  "name": "mathforge",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "dev:api": "npm --workspace @mathforge/api run dev",
+    "dev:mobile": "npm --workspace @mathforge/mobile run start"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "MathForge",
+    "slug": "mathforge",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "mathforge",
+    "extra": {
+      "apiBaseUrl": "http://localhost:4000"
+    }
+  }
+}
