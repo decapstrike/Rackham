@@ -1,6 +1,6 @@
 # Math Content Spec
 
-MVP math scope targets rising 6th-grade readiness.
+Math is the first LearningForge subject pack. MVP math scope targets rising 6th-grade readiness and plugs into `docs/CONTENT_MODEL.md` and `docs/ACTIVITY_TYPES.md`.
 
 ## Domains
 
@@ -14,6 +14,8 @@ MVP math scope targets rising 6th-grade readiness.
 ## Generator Contract
 
 Every deterministic generator returns `GeneratedProblem` with prompt, answer format, correct answer, explanation, three hints, difficulty, and metadata.
+
+For new subject packs, use the same activity contract even when the implementation type is not called `GeneratedProblem`.
 
 ## Hint Rules
 

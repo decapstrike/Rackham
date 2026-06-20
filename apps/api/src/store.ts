@@ -3,16 +3,21 @@ import {
   buildDailyQuestPlan,
   checkAnswer,
   DEFAULT_FOCUS_SKILL_ID,
+  SUBJECT_IDS,
+  activityTemplates,
   forgeUpgrades,
-  generateProblem,
+  generateActivity,
   levelFromXp,
   masteryScore,
   rewardRules,
   skillDomains,
   skills,
+  subjects,
   validateDailyQuestPlan,
+  type ActivityType,
   type ChildProfile,
   type ChildSkillProgress,
+  type GeneratedActivity,
   type ForgeUpgrade,
   type ProblemAttempt,
   type Quest,
@@ -20,27 +25,47 @@ import {
   type AvatarKey,
   type Theme,
   type TutorTone
-} from "@mathforge/shared";
+} from "@learningforge/shared";
 import { personalizeQuest } from "./ai/questPersonalization.js";
 
 const now = () => new Date().toISOString();
 const id = (prefix: string) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 
+type ActivityAttempt = GeneratedActivity & {
+  id: string;
+  questId: string;
+  childProfileId: string;
+  problemType?: ActivityType;
+  submittedAnswer?: string;
+  isCorrect?: boolean;
+  hintsUsed: number;
+  timeSpentSeconds?: number;
+  createdAt: string;
+  answeredAt?: string;
+};
+
 export type Store = {
   children: Map<string, ChildProfile>;
+  studentProfiles: Map<string, ChildProfile>;
   rewards: Map<string, RewardInventory>;
   progress: Map<string, ChildSkillProgress>;
   quests: Map<string, Quest>;
-  attempts: Map<string, ProblemAttempt>;
+  attempts: Map<string, ActivityAttempt>;
+  activityAttempts: Map<string, ActivityAttempt>;
   forge: Map<string, ForgeUpgrade[]>;
 };
 
+const profiles = new Map<string, ChildProfile>();
+const attempts = new Map<string, ActivityAttempt>();
+
 export const store: Store = {
-  children: new Map(),
+  children: profiles,
+  studentProfiles: profiles,
   rewards: new Map(),
   progress: new Map(),
   quests: new Map(),
-  attempts: new Map(),
+  attempts,
+  activityAttempts: attempts,
   forge: new Map()
 };
 
@@ -84,6 +109,18 @@ export function createChildProfile(input: {
   return childProfile;
 }
 
+export const createStudentProfile = createChildProfile;
+
+export function getSubjects() {
+  return subjects;
+}
+
+export function getSubject(subjectId: string) {
+  const subject = subjects.find((item) => item.id === subjectId || item.slug === subjectId);
+  if (!subject) throw new Error("Subject not found.");
+  return subject;
+}
+
 export function getHome(childProfileId: string) {
   const child = requireChild(childProfileId);
   const inventory = requireInventory(childProfileId);
@@ -101,7 +138,7 @@ export function getHome(childProfileId: string) {
     dailyQuest: {
       available: true,
       questId: existingDaily?.id,
-      title: existingDaily?.title ?? "Daily MathForge Quest",
+      title: existingDaily?.title ?? "Daily LearningForge Quest",
       presentation: existingDaily?.presentation,
       estimatedMinutes: child.dailyGoalMinutes,
       focusSkill: "Equivalent Fractions"
@@ -115,22 +152,27 @@ export function getHome(childProfileId: string) {
   };
 }
 
+export const getStudentHome = getHome;
+
 export async function createDailyQuest(childProfileId: string, preferredLength = 8) {
-  const child = requireChild(childProfileId);
-  const plan = buildDailyQuestPlan();
-  if (preferredLength !== 8 || !validateDailyQuestPlan(plan)) {
-    throw new Error("Daily quest must contain exactly 5 focus, 2 review, and 1 challenge problems.");
-  }
-  const focusSkill = skills.find((skill) => skill.id === DEFAULT_FOCUS_SKILL_ID) ?? skills[0];
+  return createSubjectDailyQuest(childProfileId, SUBJECT_IDS.math, preferredLength);
+}
+
+export async function createSubjectDailyQuest(studentProfileId: string, subjectId: string, preferredLength = 8) {
+  const subject = getSubject(subjectId);
+  const plan = buildSubjectQuestPlan(subject.id, preferredLength);
+  const child = requireChild(studentProfileId);
+  const focusSkillId = plan[0]?.skillId ?? DEFAULT_FOCUS_SKILL_ID;
+  const focusSkill = skills.find((skill) => skill.id === focusSkillId) ?? skills[0];
   const presentation = await personalizeQuest({ child, focusSkill, questLength: plan.length });
   const quest: Quest = {
     id: id("quest"),
-    childProfileId,
+    childProfileId: studentProfileId,
     questType: "daily",
     title: presentation.title,
     flavorText: presentation.flavor,
     presentation,
-    focusSkillId: DEFAULT_FOCUS_SKILL_ID,
+    focusSkillId,
     status: "in_progress",
     startedAt: now(),
     totalProblems: plan.length,
@@ -140,12 +182,13 @@ export async function createDailyQuest(childProfileId: string, preferredLength =
   };
   store.quests.set(quest.id, quest);
   plan.forEach((item, index) => {
-    const generated = generateProblem(item.problemType, { difficulty: item.difficulty, seed: index });
-    const attempt: ProblemAttempt = {
+    const generated = generateActivity(item.activityType, { difficulty: item.difficulty, seed: index });
+    const attempt: ActivityAttempt = {
       ...generated,
       id: id("attempt"),
       questId: quest.id,
-      childProfileId,
+      childProfileId: studentProfileId,
+      problemType: item.activityType,
       hintsUsed: 0,
       createdAt: now(),
       metadata: { ...generated.metadata, questRole: item.role, order: index + 1 }
@@ -162,6 +205,8 @@ export function getNextProblem(questId: string) {
   if (!next) return null;
   return publicProblem(next, attempts.indexOf(next), attempts.length);
 }
+
+export const getNextActivity = getNextProblem;
 
 export function submitAnswer(attemptId: string, submittedAnswer: string, timeSpentSeconds?: number) {
   const attempt = requireAttempt(attemptId);
@@ -180,7 +225,7 @@ export function submitAnswer(attemptId: string, submittedAnswer: string, timeSpe
     };
   }
   const wasWrongBefore = attempt.isCorrect === false;
-  const isCorrect = checkAnswer(attempt, submittedAnswer);
+  const isCorrect = checkActivityAnswer(attempt, submittedAnswer);
   attempt.submittedAnswer = submittedAnswer;
   attempt.isCorrect = isCorrect;
   attempt.timeSpentSeconds = timeSpentSeconds;
@@ -207,12 +252,16 @@ export function submitAnswer(attemptId: string, submittedAnswer: string, timeSpe
   };
 }
 
+export const submitActivityAnswer = submitAnswer;
+
 export function requestHint(attemptId: string, hintLevel: number) {
   const attempt = requireAttempt(attemptId);
   const level = Math.min(3, Math.max(1, hintLevel));
   attempt.hintsUsed = Math.max(attempt.hintsUsed, level);
   return { hint: { level, message: attempt.hintSequence[level - 1] } };
 }
+
+export const requestActivityHint = requestHint;
 
 export function completeQuest(questId: string) {
   const quest = requireQuest(questId);
@@ -309,7 +358,7 @@ export function parentSummary(childProfileId: string) {
   };
 }
 
-function updateProgress(attempt: ProblemAttempt, xp: number) {
+function updateProgress(attempt: ActivityAttempt, xp: number) {
   const key = `${attempt.childProfileId}:${attempt.skillId}`;
   const progress = store.progress.get(key);
   if (!progress) return;
@@ -323,12 +372,12 @@ function updateProgress(attempt: ProblemAttempt, xp: number) {
   progress.lastPracticedAt = now();
 }
 
-function feedbackFor(attempt: ProblemAttempt, submittedAnswer: string, isCorrect: boolean) {
+function feedbackFor(attempt: ActivityAttempt, submittedAnswer: string, isCorrect: boolean) {
   if (isCorrect) return `Nice. ${attempt.explanation}`;
   return `Close, but the forge is not hot yet. ${attempt.hintSequence[0]}`;
 }
 
-function publicProblem(attempt: ProblemAttempt, index: number, total: number) {
+function publicProblem(attempt: ActivityAttempt, index: number, total: number) {
   const { correctAnswer, explanation, hintSequence, ...safeProblem } = attempt;
   return {
     ...safeProblem,
@@ -339,6 +388,42 @@ function publicProblem(attempt: ProblemAttempt, index: number, total: number) {
 
 function attemptsForQuest(questId: string) {
   return [...store.attempts.values()].filter((attempt) => attempt.questId === questId).sort((a, b) => Number(a.metadata.order) - Number(b.metadata.order));
+}
+
+function buildSubjectQuestPlan(subjectId: string, preferredLength: number) {
+  if (preferredLength !== 8) {
+    throw new Error("Daily quest must contain exactly 8 activities.");
+  }
+  if (subjectId === SUBJECT_IDS.math) {
+    const mathPlan = buildDailyQuestPlan();
+    if (!validateDailyQuestPlan(mathPlan)) {
+      throw new Error("Daily quest must contain exactly 5 focus, 2 review, and 1 challenge problems.");
+    }
+    return mathPlan.map((item) => ({
+      activityType: item.problemType,
+      difficulty: item.difficulty,
+      role: item.role,
+      skillId: activityTemplates.find((template) => template.activityType === item.problemType)?.skillId ?? DEFAULT_FOCUS_SKILL_ID
+    }));
+  }
+  const templates = activityTemplates.filter((template) => template.subjectId === subjectId && template.status === "active");
+  if (!templates.length) throw new Error("Subject does not have active daily quest activities.");
+  return Array.from({ length: preferredLength }, (_, index) => {
+    const template = templates[index % templates.length];
+    return {
+      activityType: template.activityType,
+      difficulty: index === preferredLength - 1 ? 2 : 1,
+      role: index < 5 ? "focus" : index < 7 ? "review" : "challenge",
+      skillId: template.skillId
+    };
+  });
+}
+
+function checkActivityAnswer(attempt: ActivityAttempt, submittedAnswer: string) {
+  if (attempt.subjectId === SUBJECT_IDS.math && attempt.problemType) {
+    return checkAnswer(attempt as ProblemAttempt, submittedAnswer);
+  }
+  return attempt.correctAnswer.trim().toLowerCase() === submittedAnswer.trim().toLowerCase();
 }
 
 function requireChild(childProfileId: string) {

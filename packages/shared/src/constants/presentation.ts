@@ -48,7 +48,7 @@ export function worldForTheme(theme: Theme): WorldPresentation {
     };
   }
   return {
-    worldName: "The Ancient MathForge",
+    worldName: "The Ancient LearningForge",
     environment: "ancient_forge",
     backdrop: "molten channels, brass machines, and sleeping anvils",
     primaryActionVerb: "reignite"

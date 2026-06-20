@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "MathForge",
-    "slug": "mathforge",
+    "name": "LearningForge",
+    "slug": "learningforge",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "scheme": "mathforge",
+    "scheme": "learningforge",
     "extra": {
       "apiBaseUrl": "http://localhost:4000"
     }

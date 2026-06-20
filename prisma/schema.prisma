@@ -10,6 +10,12 @@ datasource db {
 enum UserRole {
   parent
   child
+  student
+}
+
+enum LearningContentStatus {
+  active
+  inactive
 }
 
 enum Theme {
@@ -53,10 +59,10 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  children ChildProfile[] @relation("ParentChildren")
+  students StudentProfile[] @relation("ParentStudents")
 }
 
-model ChildProfile {
+model StudentProfile {
   id               String    @id
   parentUserId     String?
   displayName      String
@@ -69,45 +75,67 @@ model ChildProfile {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  parent       User?                @relation("ParentChildren", fields: [parentUserId], references: [id])
-  progress     ChildSkillProgress[]
-  quests       Quest[]
-  attempts     ProblemAttempt[]
-  inventory    RewardInventory?
+  parent        User?                  @relation("ParentStudents", fields: [parentUserId], references: [id])
+  progress      StudentSkillProgress[]
+  quests        Quest[]
+  attempts      ActivityAttempt[]
+  inventory     RewardInventory?
   forgeUpgrades ForgeUpgrade[]
 
   @@index([parentUserId])
 }
 
-model SkillDomain {
-  id           String @id
+model Subject {
+  id           String                @id
   name         String
-  slug         String @unique
+  slug         String                @unique
   description  String
+  status       LearningContentStatus @default(active)
   displayOrder Int
 
-  skills Skill[]
+  domains SkillDomain[]
+  skills  Skill[]
+  quests  Quest[]
+}
+
+model SkillDomain {
+  id           String                @id
+  subjectId    String
+  name         String
+  slug         String                @unique
+  description  String
+  status       LearningContentStatus @default(active)
+  displayOrder Int
+
+  subject Subject @relation(fields: [subjectId], references: [id])
+  skills  Skill[]
+
+  @@index([subjectId])
 }
 
 model Skill {
-  id           String @id
+  id           String                @id
+  subjectId    String
   domainId     String
   name         String
-  slug         String @unique
+  slug         String                @unique
   description  String
   gradeBand    String
+  status       LearningContentStatus @default(active)
   displayOrder Int
 
-  domain   SkillDomain          @relation(fields: [domainId], references: [id])
-  progress ChildSkillProgress[]
-  attempts ProblemAttempt[]
+  subject  Subject                @relation(fields: [subjectId], references: [id])
+  domain   SkillDomain            @relation(fields: [domainId], references: [id])
+  progress StudentSkillProgress[]
+  attempts ActivityAttempt[]
 
+  @@index([subjectId])
   @@index([domainId])
 }
 
-model ChildSkillProgress {
+model StudentSkillProgress {
   id                String    @id
-  childProfileId    String
+  studentProfileId  String
   skillId           String
   level             Int       @default(1)
   xp                Int       @default(0)
@@ -119,42 +147,45 @@ model ChildSkillProgress {
   currentDifficulty Int       @default(1)
   lastPracticedAt   DateTime?
 
-  child ChildProfile @relation(fields: [childProfileId], references: [id], onDelete: Cascade)
-  skill Skill        @relation(fields: [skillId], references: [id])
+  student StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  skill   Skill          @relation(fields: [skillId], references: [id])
 
-  @@unique([childProfileId, skillId])
+  @@unique([studentProfileId, skillId])
 }
 
 model Quest {
-  id              String      @id
-  childProfileId  String
-  questType       QuestType
-  title           String
-  flavorText      String?
-  presentation    Json?
-  focusSkillId    String
-  status          QuestStatus @default(not_started)
-  startedAt       DateTime?
-  completedAt     DateTime?
-  totalProblems   Int
-  correctProblems Int         @default(0)
-  xpEarned        Int         @default(0)
-  coinsEarned     Int         @default(0)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id               String      @id
+  studentProfileId String
+  subjectId        String
+  questType        QuestType
+  title            String
+  flavorText       String?
+  presentation     Json?
+  focusSkillId     String
+  status           QuestStatus @default(not_started)
+  startedAt        DateTime?
+  completedAt      DateTime?
+  totalProblems    Int
+  correctProblems  Int         @default(0)
+  xpEarned         Int         @default(0)
+  coinsEarned      Int         @default(0)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
-  child    ChildProfile    @relation(fields: [childProfileId], references: [id], onDelete: Cascade)
-  attempts ProblemAttempt[]
+  student  StudentProfile    @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  subject  Subject           @relation(fields: [subjectId], references: [id])
+  attempts ActivityAttempt[]
 
-  @@index([childProfileId, status])
+  @@index([studentProfileId, status])
+  @@index([subjectId])
 }
 
-model ProblemAttempt {
+model ActivityAttempt {
   id               String       @id
   questId          String
-  childProfileId   String
+  studentProfileId String
   skillId          String
-  problemType      String
+  activityType     String
   prompt           String
   answerFormat     AnswerFormat
   choices          Json?
@@ -170,39 +201,39 @@ model ProblemAttempt {
   createdAt        DateTime     @default(now())
   answeredAt       DateTime?
 
-  quest Quest        @relation(fields: [questId], references: [id], onDelete: Cascade)
-  child ChildProfile @relation(fields: [childProfileId], references: [id], onDelete: Cascade)
-  skill Skill        @relation(fields: [skillId], references: [id])
+  quest   Quest          @relation(fields: [questId], references: [id], onDelete: Cascade)
+  student StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  skill   Skill          @relation(fields: [skillId], references: [id])
 
   @@index([questId])
-  @@index([childProfileId, answeredAt])
+  @@index([studentProfileId, answeredAt])
   @@index([skillId])
 }
 
 model RewardInventory {
-  id              String   @id
-  childProfileId  String   @unique
-  coins           Int      @default(0)
-  xp              Int      @default(0)
-  level           Int      @default(1)
-  unlockedItems   String[] @default([])
-  equippedItems   String[] @default([])
-  streakDays      Int      @default(0)
-  lastCompletedAt DateTime?
-  updatedAt       DateTime @updatedAt
+  id               String    @id
+  studentProfileId String    @unique
+  coins            Int       @default(0)
+  xp               Int       @default(0)
+  level            Int       @default(1)
+  unlockedItems    String[]  @default([])
+  equippedItems    String[]  @default([])
+  streakDays       Int       @default(0)
+  lastCompletedAt  DateTime?
+  updatedAt        DateTime  @updatedAt
 
-  child ChildProfile @relation(fields: [childProfileId], references: [id], onDelete: Cascade)
+  student StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
 }
 
 model ForgeUpgrade {
-  id             String   @id
-  childProfileId String
-  upgradeKey     String
-  upgradeName    String
-  level          Int      @default(1)
-  purchasedAt    DateTime @default(now())
+  id               String   @id
+  studentProfileId String
+  upgradeKey       String
+  upgradeName      String
+  level            Int      @default(1)
+  purchasedAt      DateTime @default(now())
 
-  child ChildProfile @relation(fields: [childProfileId], references: [id], onDelete: Cascade)
+  student StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
 
-  @@unique([childProfileId, upgradeKey])
+  @@unique([studentProfileId, upgradeKey])
 }

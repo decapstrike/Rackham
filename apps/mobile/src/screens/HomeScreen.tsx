@@ -2,7 +2,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Text, View, StyleSheet } from "react-native";
 import { Button, Panel, Screen, Title, Body } from "../components/ui";
 import { currentLevel, useGameStore } from "../state/useGameStore";
-import { avatarOptions, worldForTheme } from "@mathforge/shared";
+import { avatarOptions, worldForTheme } from "@learningforge/shared";
 import { theme } from "../theme/theme";
 import type { RootStackParamList } from "../../App";
 
@@ -25,12 +25,12 @@ export function HomeScreen({ navigation }: NativeStackScreenProps<RootStackParam
         <Text style={styles.avatar}>{avatar?.glyph ?? "ES"} · {avatar?.name ?? "Ember Smith"}</Text>
       </Panel>
       <Panel>
-        <Text style={styles.cardTitle}>{quest?.title ?? "Daily MathForge Quest"}</Text>
-        <Body>{quest?.flavorText ?? "Eight problems. One focused run. Rewards at the end."}</Body>
+        <Text style={styles.cardTitle}>{quest?.title ?? "Daily LearningForge Quest"}</Text>
+        <Body>{quest?.flavorText ?? "Eight focused activities. Rewards at the end."}</Body>
         <Button onPress={() => { startQuest(); navigation.navigate("Problem"); }}>Start Daily Quest</Button>
       </Panel>
-      <Button variant="secondary" onPress={() => navigation.navigate("SkillMap")}>Skill Map</Button>
-      <Button variant="secondary" onPress={() => navigation.navigate("Forge")}>Forge Upgrades</Button>
+      <Button variant="secondary" onPress={() => navigation.navigate("SubjectMap")}>Subject Map</Button>
+      <Button variant="secondary" onPress={() => navigation.navigate("Forge")}>Studio Upgrades</Button>
       <Button variant="secondary" onPress={() => navigation.navigate("ParentDashboard")}>Parent Dashboard</Button>
       <Button variant="secondary" onPress={() => navigation.navigate("Settings")}>Settings</Button>
     </Screen>

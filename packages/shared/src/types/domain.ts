@@ -3,6 +3,16 @@ export type Theme = "forge" | "fantasy" | "scifi" | "sports";
 export type TutorTone = "coach" | "rival" | "robot" | "guide";
 export type AnswerFormat = "multiple_choice" | "numeric" | "text";
 export type AvatarKey = "ember_smith" | "rune_ranger" | "star_mage" | "gear_knight";
+export type LearningContentStatus = "active" | "inactive";
+
+export type Subject = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  status: LearningContentStatus;
+  displayOrder: number;
+};
 
 export type ChildProfile = {
   id: string;
@@ -20,19 +30,25 @@ export type ChildProfile = {
 
 export type SkillDomain = {
   id: string;
+  subjectId: string;
   name: string;
   slug: string;
   description: string;
+  status: LearningContentStatus;
   displayOrder: number;
 };
 
+export type Domain = SkillDomain;
+
 export type Skill = {
   id: string;
+  subjectId: string;
   domainId: string;
   name: string;
   slug: string;
   description: string;
   gradeBand: string;
+  status: LearningContentStatus;
   displayOrder: number;
 };
 
@@ -81,9 +97,25 @@ export type QuestPresentation = {
   backdrop?: string;
 };
 
-export type GeneratedProblem = {
+export type ActivityTemplate = {
+  id: string;
+  subjectId: string;
+  domainId: string;
   skillId: string;
-  problemType: ProblemType;
+  activityType: ActivityType;
+  title: string;
+  description: string;
+  answerFormat: AnswerFormat;
+  difficultyMin: number;
+  difficultyMax: number;
+  status: LearningContentStatus;
+};
+
+export type GeneratedActivity = {
+  subjectId: string;
+  domainId: string;
+  skillId: string;
+  activityType: ActivityType;
   prompt: string;
   answerFormat: AnswerFormat;
   choices?: Array<{ id: string; text: string }>;
@@ -92,6 +124,10 @@ export type GeneratedProblem = {
   hintSequence: string[];
   difficulty: number;
   metadata: Record<string, unknown>;
+};
+
+export type GeneratedProblem = GeneratedActivity & {
+  problemType: ProblemType;
 };
 
 export type ProblemType =
@@ -116,6 +152,18 @@ export type ProblemType =
   | "rectangle_area"
   | "rectangle_perimeter"
   | "rectangular_prism_volume";
+
+export type ReadingActivityType =
+  | "reading_main_idea_multiple_choice"
+  | "reading_sequence_events"
+  | "reading_inference_multiple_choice";
+
+export type VocabularyActivityType =
+  | "vocabulary_context_clue_multiple_choice"
+  | "vocabulary_synonym_multiple_choice"
+  | "vocabulary_word_usage_text";
+
+export type ActivityType = ProblemType | ReadingActivityType | VocabularyActivityType;
 
 export type ProblemAttempt = GeneratedProblem & {
   id: string;

@@ -13,8 +13,8 @@ export function OnboardingScreen({ navigation }: NativeStackScreenProps<RootStac
   const createProfile = useGameStore((state) => state.createProfile);
   return (
     <Screen>
-      <Title>MathForge</Title>
-      <Body>Build the forge one short quest at a time.</Body>
+      <Title>LearningForge</Title>
+      <Body>Build a learning habit one short quest at a time.</Body>
       <Panel>
         <Body>Display name</Body>
         <TextInput value={name} onChangeText={setName} style={styles.input} />
@@ -43,7 +43,7 @@ export function OnboardingScreen({ navigation }: NativeStackScreenProps<RootStac
             navigation.replace("Home");
           }}
         >
-          Enter the Forge
+          Enter LearningForge
         </Button>
       </Panel>
     </Screen>

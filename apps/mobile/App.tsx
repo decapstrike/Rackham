@@ -6,6 +6,7 @@ import { HomeScreen } from "./src/screens/HomeScreen";
 import { ProblemScreen } from "./src/screens/ProblemScreen";
 import { QuestCompleteScreen } from "./src/screens/QuestCompleteScreen";
 import { SkillMapScreen } from "./src/screens/SkillMapScreen";
+import { SubjectMapScreen } from "./src/screens/SubjectMapScreen";
 import { ForgeScreen } from "./src/screens/ForgeScreen";
 import { ParentDashboardScreen } from "./src/screens/ParentDashboardScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
@@ -16,6 +17,7 @@ export type RootStackParamList = {
   Home: undefined;
   Problem: undefined;
   QuestComplete: undefined;
+  SubjectMap: undefined;
   SkillMap: undefined;
   Forge: undefined;
   ParentDashboard: undefined;
@@ -37,9 +39,10 @@ export default function App() {
         }}
       >
         <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Home" component={HomeScreen} options={{ title: "MathForge" }} />
+        <Stack.Screen name="Home" component={HomeScreen} options={{ title: "LearningForge" }} />
         <Stack.Screen name="Problem" component={ProblemScreen} options={{ title: "Daily Quest" }} />
         <Stack.Screen name="QuestComplete" component={QuestCompleteScreen} options={{ title: "Quest Complete" }} />
+        <Stack.Screen name="SubjectMap" component={SubjectMapScreen} options={{ title: "Subject Map" }} />
         <Stack.Screen name="SkillMap" component={SkillMapScreen} options={{ title: "Skill Map" }} />
         <Stack.Screen name="Forge" component={ForgeScreen} options={{ title: "Forge" }} />
         <Stack.Screen name="ParentDashboard" component={ParentDashboardScreen} options={{ title: "Parent Dashboard" }} />

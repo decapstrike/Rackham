@@ -6,10 +6,18 @@ import {
   completeQuest,
   createChildProfile,
   createDailyQuest,
+  createStudentProfile,
+  createSubjectDailyQuest,
   getHome,
   getNextProblem,
+  getSubjects,
+  getSubject,
+  getStudentHome,
+  getNextActivity,
   parentSummary,
+  requestActivityHint,
   requestHint,
+  submitActivityAnswer,
   submitAnswer
 } from "./store.js";
 
@@ -35,8 +43,26 @@ app.post("/child-profiles", (req, res) => {
   res.status(201).json({ childProfile: createChildProfile(input) });
 });
 
+app.post("/student-profiles", (req, res) => {
+  const input = childProfileSchema.parse(req.body);
+  const studentProfile = createStudentProfile(input);
+  res.status(201).json({ studentProfile, childProfile: studentProfile });
+});
+
 app.get("/child-profiles/:childProfileId/home", (req, res) => {
   res.json(getHome(req.params.childProfileId));
+});
+
+app.get("/student-profiles/:studentProfileId/home", (req, res) => {
+  res.json(getStudentHome(req.params.studentProfileId));
+});
+
+app.get("/subjects", (_req, res) => {
+  res.json({ subjects: getSubjects() });
+});
+
+app.get("/subjects/:subjectId", (req, res) => {
+  res.json({ subject: getSubject(req.params.subjectId) });
 });
 
 app.post("/child-profiles/:childProfileId/quests/daily", async (req, res) => {
@@ -44,8 +70,18 @@ app.post("/child-profiles/:childProfileId/quests/daily", async (req, res) => {
   res.status(201).json({ quest: await createDailyQuest(req.params.childProfileId, body.preferredLength) });
 });
 
+app.post("/student-profiles/:studentProfileId/subjects/:subjectId/quests/daily", async (req, res) => {
+  const body = z.object({ preferredLength: z.number().int().default(8) }).parse(req.body);
+  res.status(201).json({ quest: await createSubjectDailyQuest(req.params.studentProfileId, req.params.subjectId, body.preferredLength) });
+});
+
 app.get("/quests/:questId/next-problem", (req, res) => {
   res.json({ problem: getNextProblem(req.params.questId) });
+});
+
+app.get("/quests/:questId/next-activity", (req, res) => {
+  const activity = getNextActivity(req.params.questId);
+  res.json({ activity, problem: activity });
 });
 
 app.post("/problem-attempts/:attemptId/answer", (req, res) => {
@@ -53,9 +89,19 @@ app.post("/problem-attempts/:attemptId/answer", (req, res) => {
   res.json(submitAnswer(req.params.attemptId, body.submittedAnswer, body.timeSpentSeconds));
 });
 
+app.post("/activity-attempts/:attemptId/answer", (req, res) => {
+  const body = z.object({ submittedAnswer: z.string(), timeSpentSeconds: z.number().int().optional() }).parse(req.body);
+  res.json(submitActivityAnswer(req.params.attemptId, body.submittedAnswer, body.timeSpentSeconds));
+});
+
 app.post("/problem-attempts/:attemptId/hint", (req, res) => {
   const body = z.object({ hintLevel: z.number().int().min(1).max(3) }).parse(req.body);
   res.json(requestHint(req.params.attemptId, body.hintLevel));
+});
+
+app.post("/activity-attempts/:attemptId/hint", (req, res) => {
+  const body = z.object({ hintLevel: z.number().int().min(1).max(3) }).parse(req.body);
+  res.json(requestActivityHint(req.params.attemptId, body.hintLevel));
 });
 
 app.post("/quests/:questId/complete", (req, res) => {
@@ -68,6 +114,10 @@ app.post("/child-profiles/:childProfileId/forge/upgrades/:upgradeKey", (req, res
 
 app.get("/child-profiles/:childProfileId/parent-summary", (req, res) => {
   res.json(parentSummary(req.params.childProfileId));
+});
+
+app.get("/student-profiles/:studentProfileId/parent-summary", (req, res) => {
+  res.json(parentSummary(req.params.studentProfileId));
 });
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

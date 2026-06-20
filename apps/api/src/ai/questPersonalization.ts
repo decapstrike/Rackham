@@ -1,4 +1,4 @@
-import { worldForTheme, type ChildProfile, type QuestPresentation, type Skill, type Theme } from "@mathforge/shared";
+import { worldForTheme, type ChildProfile, type QuestPresentation, type Skill, type Theme } from "@learningforge/shared";
 
 export type QuestPersonalizationInput = {
   child: Pick<ChildProfile, "gradeLevel" | "interests" | "preferredTheme" | "tutorTone">;
@@ -9,7 +9,7 @@ export type QuestPersonalizationInput = {
 export const QUEST_PERSONALIZATION_AGENT_MODEL = "gpt-5.4-mini";
 
 export const questPersonalizationSystemPrompt = `
-You are the MathForge Quest Personalization Agent.
+You are the LearningForge Quest Personalization Agent.
 Create a short quest title and flavor text from grade, interests, theme, tutor tone, and focus skill.
 Rules:
 - Do not generate math answers.
@@ -78,7 +78,7 @@ export function fallbackQuestPersonalization(input: QuestPersonalizationInput): 
   }
 
   return {
-    title: gradeBand === "elementary" ? "Spark the MathForge" : `Reignite the ${skillLabel} Furnace`,
+    title: gradeBand === "elementary" ? "Spark the LearningForge" : `Reignite the ${skillLabel} Furnace`,
     flavor: "The forge responds to steady work. Solve the set and bring the next room online.",
     gradeLevel: input.child.gradeLevel,
     theme,

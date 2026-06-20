@@ -1,13 +1,15 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { answerReward, avatarOptions, buildDailyQuestPlan, checkAnswer, generateProblem, levelFromXp, rewardRules, skills, worldForTheme, type AvatarKey, type ChildProfile, type ProblemAttempt, type Quest } from "@mathforge/shared";
+import { answerReward, avatarOptions, buildDailyQuestPlan, checkAnswer, generateProblem, levelFromXp, rewardRules, skills, worldForTheme, type AvatarKey, type ChildProfile, type ProblemAttempt, type Quest } from "@learningforge/shared";
+import type { DisplayActivity } from "../content/learningContent";
 
 type Feedback = { message: string; isCorrect: boolean } | null;
 
 type GameState = {
   child?: ChildProfile;
   quest?: Quest;
+  selectedActivity?: DisplayActivity;
   attempts: ProblemAttempt[];
   currentIndex: number;
   feedback: Feedback;
@@ -20,6 +22,8 @@ type GameState = {
   lastCompletedAt?: string;
   createProfile: (input: Pick<ChildProfile, "displayName" | "gradeLevel" | "preferredTheme" | "tutorTone" | "dailyGoalMinutes"> & { interests?: string[]; avatarKey?: AvatarKey }) => void;
   startQuest: () => void;
+  selectActivity: (activity: DisplayActivity) => void;
+  clearSelectedActivity: () => void;
   submitAnswer: (answer: string) => void;
   requestHint: () => string | undefined;
   continueQuest: () => void;
@@ -70,7 +74,7 @@ export const useGameStore = create<GameState>()(
           childProfileId: child.id,
           questType: "daily",
           title: localQuestTitle(child),
-          flavorText: `Explore ${world.worldName}: ${world.backdrop}. Eight fast problems power the next gate.`,
+          flavorText: `Explore ${world.worldName}: ${world.backdrop}. Eight quick activities power the next gate.`,
           focusSkillId: "skill_equivalent_fractions",
           status: "in_progress",
           startedAt: now(),
@@ -83,6 +87,9 @@ export const useGameStore = create<GameState>()(
           const generated = generateProblem(item.problemType, { difficulty: item.difficulty, seed: index });
           return {
             ...generated,
+            subjectId: "math",
+            domainId: "math-fractions",
+            activityType: generated.problemType,
             id: id("attempt"),
             questId: quest.id,
             childProfileId: child.id,
@@ -91,8 +98,10 @@ export const useGameStore = create<GameState>()(
             metadata: { ...generated.metadata, questRole: item.role, order: index + 1, rewarded: false, missedBeforeCorrect: false }
           };
         });
-        set({ quest, attempts, currentIndex: 0, feedback: null });
+        set({ quest, attempts, currentIndex: 0, selectedActivity: undefined, feedback: null });
       },
+      selectActivity: (activity) => set({ selectedActivity: activity, feedback: null }),
+      clearSelectedActivity: () => set({ selectedActivity: undefined, feedback: null }),
       submitAnswer: (answer) => {
         const state = get();
         const attempt = state.attempts[state.currentIndex];
@@ -168,6 +177,7 @@ export const useGameStore = create<GameState>()(
       resetPrototype: () => set({
         child: undefined,
         quest: undefined,
+        selectedActivity: undefined,
         attempts: [],
         currentIndex: 0,
         feedback: null,
@@ -181,7 +191,7 @@ export const useGameStore = create<GameState>()(
       })
     }),
     {
-      name: "mathforge-prototype-state",
+      name: "learningforge-prototype-state",
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         child: state.child,

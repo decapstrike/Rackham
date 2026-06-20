@@ -1,4 +1,5 @@
 import type { GeneratedProblem, ProblemType } from "../types/domain.js";
+import { SUBJECT_IDS } from "../constants/skills.js";
 import { fractionToString, simplify } from "./fractions.js";
 
 type GeneratorInput = { difficulty?: number; seed?: number };
@@ -28,9 +29,36 @@ const ids = {
   rectangular_prism_volume: "skill_rectangular_prism_volume"
 } satisfies Record<ProblemType, string>;
 
+const domains = {
+  equivalent_fraction_multiple_choice: "domain_fractions",
+  simplify_fraction: "domain_fractions",
+  compare_fractions: "domain_fractions",
+  add_fractions_common_denominator: "domain_fractions",
+  add_fractions_unlike_denominator: "domain_fractions",
+  compare_decimals: "domain_decimals",
+  add_decimals: "domain_decimals",
+  subtract_decimals: "domain_decimals",
+  decimal_place_value: "domain_decimals",
+  equivalent_ratios: "domain_ratios",
+  unit_rate_simple: "domain_ratios",
+  scale_ratio: "domain_ratios",
+  compare_integers: "domain_negative_numbers",
+  add_integers: "domain_negative_numbers",
+  subtract_integers: "domain_negative_numbers",
+  evaluate_expression: "domain_pre_algebra",
+  solve_one_step_equation_addition: "domain_pre_algebra",
+  solve_one_step_equation_multiplication: "domain_pre_algebra",
+  rectangle_area: "domain_geometry",
+  rectangle_perimeter: "domain_geometry",
+  rectangular_prism_volume: "domain_geometry"
+} satisfies Record<ProblemType, string>;
+
 const choice = (correct: string, options: string[]) => options.map((text, index) => ({ id: String.fromCharCode(65 + index), text })).find((c) => c.text === correct)?.id ?? "A";
 const base = (problemType: ProblemType, prompt: string, correctAnswer: string, explanation: string, hintSequence: string[], difficulty = 1, metadata: Record<string, unknown> = {}): GeneratedProblem => ({
+  subjectId: SUBJECT_IDS.math,
+  domainId: domains[problemType],
   skillId: ids[problemType],
+  activityType: problemType,
   problemType,
   prompt,
   answerFormat: "numeric",

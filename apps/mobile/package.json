@@ -1,5 +1,5 @@
 {
-  "name": "@mathforge/mobile",
+  "name": "@learningforge/mobile",
   "version": "0.1.0",
   "private": true,
   "main": "expo/AppEntry.js",
@@ -11,7 +11,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@mathforge/shared": "0.1.0",
+    "@learningforge/shared": "0.1.0",
     "@react-native-async-storage/async-storage": "^1.23.1",
     "@react-navigation/bottom-tabs": "^6.6.1",
     "@react-navigation/native": "^6.1.18",

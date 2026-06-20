@@ -1,41 +1,85 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Text, TextInput, StyleSheet, View } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Button, Panel, Screen, Body } from "../components/ui";
 import { useGameStore } from "../state/useGameStore";
 import { theme } from "../theme/theme";
+import { activityTitle, subjectNameFor } from "../content/learningContent";
 import type { RootStackParamList } from "../../App";
 
 export function ProblemScreen({ navigation }: NativeStackScreenProps<RootStackParamList, "Problem">) {
   const [answer, setAnswer] = useState("");
-  const { quest, attempts, currentIndex, feedback, submitAnswer, requestHint, continueQuest } = useGameStore();
+  const [previewFeedback, setPreviewFeedback] = useState<{ message: string; isCorrect: boolean } | null>(null);
+  const { quest, attempts, currentIndex, feedback, selectedActivity, submitAnswer, requestHint, continueQuest, clearSelectedActivity } = useGameStore();
   const attempt = attempts[currentIndex];
-  if (!attempt) return <Screen><Body>No active quest.</Body></Screen>;
-  const answeredCorrectly = feedback?.isCorrect;
+  const activity = selectedActivity ?? attempt;
+
+  useEffect(() => {
+    setAnswer("");
+    setPreviewFeedback(null);
+  }, [activity?.id]);
+
+  if (!activity) return <Screen><Body>No active activity.</Body></Screen>;
+
+  const isPreview = selectedActivity !== undefined;
+  const activeFeedback = isPreview ? previewFeedback : feedback;
+  const answeredCorrectly = activeFeedback?.isCorrect;
+  const subjectName = subjectNameFor(activity.subjectId);
+  const title = selectedActivity?.title ?? activityTitle(activity.activityType);
+  const progressLabel = isPreview
+    ? `${subjectName} preview`
+    : `Activity ${currentIndex + 1} of ${attempts.length} · ${String(activity.metadata.questRole)}`;
+
+  const handleSubmit = () => {
+    if (isPreview) {
+      const isCorrect = normalizeAnswer(answer) === normalizeAnswer(activity.correctAnswer);
+      setPreviewFeedback({
+        isCorrect,
+        message: isCorrect ? `Nice. ${activity.explanation}` : `Close. ${activity.hintSequence[0]}`
+      });
+      return;
+    }
+    submitAnswer(answer);
+  };
+
+  const handleHint = () => {
+    if (isPreview) {
+      setPreviewFeedback({ isCorrect: false, message: activity.hintSequence[0] });
+      return;
+    }
+    requestHint();
+  };
+
   return (
     <Screen>
-      <Text style={styles.quest}>{quest?.title}</Text>
-      {quest?.flavorText ? <Body>{quest.flavorText}</Body> : null}
-      <Body>Problem {currentIndex + 1} of {attempts.length} · {String(attempt.metadata.questRole)}</Body>
+      <Text style={styles.quest}>{selectedActivity ? title : quest?.title}</Text>
+      {selectedActivity ? <Body>{subjectName} · {title}</Body> : null}
+      {!selectedActivity && quest?.flavorText ? <Body>{quest.flavorText}</Body> : null}
+      <Body>{progressLabel}</Body>
       <Panel>
-        <Text style={styles.prompt}>{attempt.prompt}</Text>
-        {attempt.choices ? (
+        <Text style={styles.prompt}>{activity.prompt}</Text>
+        {activity.choices ? (
           <View style={styles.choices}>
-            {attempt.choices.map((choice) => (
-              <Button key={choice.id} variant="secondary" onPress={() => setAnswer(choice.id)}>{choice.id}. {choice.text}</Button>
+            {activity.choices.map((choice) => (
+              <Button key={choice.id} variant={answer === choice.id ? "primary" : "secondary"} onPress={() => setAnswer(choice.id)}>{choice.id}. {choice.text}</Button>
             ))}
           </View>
         ) : (
           <TextInput value={answer} onChangeText={setAnswer} style={styles.input} placeholder="Type answer" />
         )}
-        <Button onPress={() => submitAnswer(answer)}>Submit</Button>
-        <Button variant="secondary" onPress={() => requestHint()}>Hint</Button>
+        <Button onPress={handleSubmit}>Submit</Button>
+        <Button variant="secondary" onPress={handleHint}>Hint</Button>
       </Panel>
-      {feedback ? (
+      {activeFeedback ? (
         <Panel>
-          <Text style={[styles.feedback, feedback.isCorrect ? styles.good : styles.tryAgain]}>{feedback.message}</Text>
+          <Text style={[styles.feedback, activeFeedback.isCorrect ? styles.good : styles.tryAgain]}>{activeFeedback.message}</Text>
           {answeredCorrectly ? (
             <Button onPress={() => {
+              if (isPreview) {
+                clearSelectedActivity();
+                navigation.goBack();
+                return;
+              }
               const done = currentIndex >= attempts.length - 1;
               continueQuest();
               setAnswer("");
@@ -46,6 +90,10 @@ export function ProblemScreen({ navigation }: NativeStackScreenProps<RootStackPa
       ) : null}
     </Screen>
   );
+}
+
+function normalizeAnswer(value: string) {
+  return value.trim().toLowerCase();
 }
 
 const styles = StyleSheet.create({

@@ -1,10 +1,10 @@
 # Quest Personalization Contract
 
-This document defines the server-side contract for quest title and flavor personalization in MathForge.
+This document defines the server-side contract for quest title and flavor personalization in LearningForge.
 
 ## Goal
 
-Make the daily quest feel tailored to the child without changing math correctness, problem generation, or answer checking.
+Make the daily quest feel tailored to the child without changing content correctness, activity generation, or answer checking.
 
 ## Inputs
 
@@ -14,9 +14,10 @@ The personalization layer may use these child profile inputs:
 - `interests` as an optional short array of parent-entered nouns or topics
 - `preferredTheme`
 - `tutorTone`
+- `subjectId`
 - `focusSkillId`
 
-Only the grade, interests, theme, tone, and focus skill should influence quest presentation text.
+Only the grade, interests, theme, tone, subject, and focus skill should influence quest presentation text.
 
 ## Outputs
 
@@ -29,6 +30,7 @@ Quest generation should return a presentation object alongside the normal quest 
   "gradeLevel": 6,
   "theme": "forge",
   "tutorTone": "coach",
+  "subjectId": "math",
   "focusSkillId": "skill_equivalent_fractions",
   "interestMotif": "space"
 }
@@ -42,14 +44,14 @@ Quest generation should return a presentation object alongside the normal quest 
 - Age-fit: grade should control the vocabulary and energy level.
 - Light motif only: interests can contribute at most one surface-level theme cue.
 - Theme controls style words, not content scope.
-- Tone controls encouragement phrasing, not the problem set.
-- Focus skill is the anchor. The quest title and flavor must clearly point at the skill being practiced.
+- Tone controls encouragement phrasing, not the activity set.
+- Subject and focus skill are the anchor. The quest title and flavor must clearly point at the skill being practiced.
 
 ## Recommended Implementation Shape
 
 - Add a small server helper that accepts the child profile and focus skill.
 - Build quest title/flavor from a fixed template table keyed by theme, tone, and grade band.
-- Keep the helper separate from math generation and answer checking.
+- Keep the helper separate from activity generation and answer checking.
 - Return the presentation object from `POST /child-profiles/:childProfileId/quests/daily` and `GET /child-profiles/:childProfileId/home`.
 
 ## Example Mapping
@@ -66,6 +68,6 @@ For a younger child with `preferredTheme = fantasy`, `tutorTone = guide`, and `i
 
 ## Out of Scope
 
-- No AI-written math explanations.
-- No personalization of the underlying problem set beyond selecting the correct focus and review mix.
+- No AI-written answer truth or correctness logic.
+- No personalization of the underlying activity set beyond selecting the correct focus and review mix.
 - No collection of extra child data beyond the minimum needed for presentation.

@@ -1,5 +1,5 @@
 {
-  "name": "@mathforge/api",
+  "name": "@learningforge/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -15,7 +15,7 @@
     "db:studio": "prisma studio --schema ../../prisma/schema.prisma"
   },
   "dependencies": {
-    "@mathforge/shared": "0.1.0",
+    "@learningforge/shared": "0.1.0",
     "@prisma/client": "^5.22.0",
     "cors": "^2.8.5",
     "express": "^4.19.2",

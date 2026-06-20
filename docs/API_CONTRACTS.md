@@ -31,17 +31,19 @@ Returns child rewards, daily quest availability, current daily quest presentatio
 
 ```json
 {
-  "preferredLength": 8
+  "preferredLength": 8,
+  "subjectId": "math"
 }
 ```
 
-The returned quest should include a deterministic presentation payload derived from the child profile and focus skill:
+The returned quest should include a deterministic presentation payload derived from the child profile, subject, and focus skill:
 
 ```json
 {
   "quest": {
     "id": "quest_123",
     "title": "Reignite the Fraction Furnace",
+    "subjectId": "math",
     "focusSkillId": "skill_equivalent_fractions",
     "presentation": {
       "title": "Reignite the Fraction Furnace",
@@ -59,17 +61,17 @@ Quest presentation rules:
 
 - `title` and `flavor` are deterministic server-side strings.
 - `gradeLevel` controls vocabulary density and intensity.
-- `interests` may add one light motif only; they do not change the math problems.
+- `interests` may add one light motif only; they do not change the underlying activities.
 - `preferredTheme` shapes nouns, metaphors, and surface art direction.
 - `tutorTone` shapes encouragement style only.
-- `focusSkillId` anchors the actual subject of the quest.
-- AI must not be used for answer checking, problem generation, or correctness decisions.
+- `subjectId` and `focusSkillId` anchor the actual learning content.
+- AI must not be used for answer checking, activity generation, or correctness decisions.
 
-## Next Problem
+## Next Activity
 
 `GET /quests/:questId/next-problem`
 
-Returns one unanswered problem without exposing server-only explanation metadata beyond what is needed for display.
+Returns one unanswered activity without exposing server-only answer metadata beyond what is needed for display. The current route name is still `next-problem` for compatibility; future API cleanup can rename it to `next-activity`.
 
 ## Submit Answer
 

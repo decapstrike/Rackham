@@ -11,7 +11,7 @@ export function QuestCompleteScreen({ navigation }: NativeStackScreenProps<RootS
   return (
     <Screen>
       <Title>Quest complete</Title>
-      <Body>{quest?.title ?? "Daily quest"} is done. The forge is glowing again.</Body>
+      <Body>{quest?.title ?? "Daily quest"} is done. The studio is glowing again.</Body>
       <Panel>
         <Text style={styles.reward}>{xp} XP</Text>
         <Text style={styles.reward}>{coins} coins</Text>

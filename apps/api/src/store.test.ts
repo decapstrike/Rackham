@@ -1,5 +1,7 @@
-import { rewardRules } from "@mathforge/shared";
+import { rewardRules } from "@learningforge/shared";
+import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
+import { app } from "./app.js";
 import {
   buyForgeUpgrade,
   completeQuest,
@@ -12,7 +14,7 @@ import {
   submitAnswer
 } from "./store.js";
 
-describe("MathForge store quest lifecycle", () => {
+describe("LearningForge store quest lifecycle", () => {
   beforeEach(() => {
     store.children.clear();
     store.rewards.clear();
@@ -171,6 +173,85 @@ describe("MathForge store quest lifecycle", () => {
     expect(summary.needsPractice).toContain("Adding Fractions with Unlike Denominators");
     expect(summary.summary).toContain("8 of 8 problems are correct");
     expect(summary.recommendedNextQuest.focusSkillId).toBe("skill_add_fractions_unlike_denominators");
+  });
+});
+
+describe("LearningForge subject-agnostic API aliases", () => {
+  beforeEach(() => {
+    store.children.clear();
+    store.rewards.clear();
+    store.progress.clear();
+    store.quests.clear();
+    store.attempts.clear();
+    store.forge.clear();
+  });
+
+  it("creates student profiles alongside child profile compatibility", async () => {
+    const response = await request(app)
+      .post("/student-profiles")
+      .send({
+        displayName: "Reader",
+        gradeLevel: 5,
+        interests: ["mystery"],
+        preferredTheme: "fantasy",
+        tutorTone: "guide",
+        dailyGoalMinutes: 10
+      })
+      .expect(201);
+
+    expect(response.body.studentProfile.id).toBeTruthy();
+    expect(response.body.childProfile).toEqual(response.body.studentProfile);
+
+    const home = await request(app)
+      .get(`/student-profiles/${response.body.studentProfile.id}/home`)
+      .expect(200);
+
+    expect(home.body.child.displayName).toBe("Reader");
+    expect(home.body.dailyQuest.title).toBe("Daily LearningForge Quest");
+  });
+
+  it("lists subjects and runs math, reading, and vocabulary daily quests through activity aliases", async () => {
+    const profile = await request(app)
+      .post("/student-profiles")
+      .send({ displayName: "Player" })
+      .expect(201);
+    const studentProfileId = profile.body.studentProfile.id;
+
+    const subjects = await request(app).get("/subjects").expect(200);
+    expect(subjects.body.subjects.filter((subject: { status: string }) => subject.status === "active").map((subject: { slug: string }) => subject.slug)).toEqual(["math", "reading", "vocabulary"]);
+
+    for (const subjectSlug of ["math", "reading", "vocabulary"]) {
+      await request(app).get(`/subjects/${subjectSlug}`).expect(200);
+
+      const quest = await request(app)
+        .post(`/student-profiles/${studentProfileId}/subjects/${subjectSlug}/quests/daily`)
+        .send({ preferredLength: 8 })
+        .expect(201);
+
+      const nextActivity = await request(app)
+        .get(`/quests/${quest.body.quest.id}/next-activity`)
+        .expect(200);
+
+      expect(nextActivity.body.activity.id).toBeTruthy();
+      expect(nextActivity.body.problem).toEqual(nextActivity.body.activity);
+      expect(nextActivity.body.activity.correctAnswer).toBeUndefined();
+      expect(nextActivity.body.activity.subjectId).toBe(`subject_${subjectSlug}`);
+
+      const attemptId = nextActivity.body.activity.id;
+      const correctAnswer = store.activityAttempts.get(attemptId)?.correctAnswer;
+
+      const hint = await request(app)
+        .post(`/activity-attempts/${attemptId}/hint`)
+        .send({ hintLevel: 1 })
+        .expect(200);
+      expect(hint.body.hint.message).toBeTruthy();
+
+      const answer = await request(app)
+        .post(`/activity-attempts/${attemptId}/answer`)
+        .send({ submittedAnswer: correctAnswer, timeSpentSeconds: 15 })
+        .expect(200);
+      expect(answer.body.isCorrect).toBe(true);
+    }
   });
 });
 

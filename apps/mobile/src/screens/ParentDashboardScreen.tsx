@@ -17,19 +17,19 @@ export function ParentDashboardScreen() {
       <Panel>
         <Text style={styles.metric}>Last 7 days</Text>
         <Body>Sessions completed: {completedQuestCount}</Body>
-        <Body>Problems solved: {solved}</Body>
+        <Body>Activities completed: {solved}</Body>
         <Body>Accuracy: {accuracy}%</Body>
         <Body>Minutes practiced: {completedQuestCount * 10}</Body>
       </Panel>
       <Panel>
-        <Text style={styles.metric}>Skill read</Text>
+        <Text style={styles.metric}>Learning read</Text>
         <Body>Strong skill: Equivalent Fractions</Body>
         <Body>Needs practice: {needsPractice}</Body>
         <Body>Hints used this run: {hinted}</Body>
       </Panel>
       <Panel>
         <Text style={styles.metric}>Summary</Text>
-        <Body>{solved ? `Strong start. ${correct} of ${solved} solved problems are correct. Keep the next quest focused on ${needsPractice.toLowerCase()}.` : "No completed quest yet. The first run will create a useful summary."}</Body>
+        <Body>{solved ? `Strong start. ${correct} of ${solved} completed activities are correct. Keep the next quest focused on ${needsPractice.toLowerCase()}.` : "No completed quest yet. The first run will create a useful summary."}</Body>
       </Panel>
     </Screen>
   );

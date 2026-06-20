@@ -1,11 +1,11 @@
-# MathForge AWS Infrastructure Plan
+# LearningForge AWS Infrastructure Plan
 
-MathForge should move off local infrastructure in small steps, without turning the MVP into a production platform too early. The first AWS target is a private alpha backend that keeps the daily quest loop reliable, preserves deterministic math correctness, and avoids unnecessary child data.
+LearningForge should move off local infrastructure in small steps, without turning the MVP into a production platform too early. The first AWS target is a private alpha backend that keeps the daily quest loop reliable, preserves deterministic content correctness, and avoids unnecessary child data.
 
 ## Goals
 
 - Host the API behind a stable HTTPS endpoint.
-- Persist child profiles, quest state, attempts, rewards, skill progress, and forge upgrades in Postgres.
+- Persist child profiles, quest state, activity attempts, rewards, skill progress, and forge upgrades in Postgres.
 - Keep OpenAI usage optional and server-side only.
 - Preserve local development with Docker Postgres and deterministic fallbacks.
 - Keep the infrastructure understandable enough for one engineer to operate.
@@ -22,7 +22,7 @@ MathForge should move off local infrastructure in small steps, without turning t
 | Need | AWS Service | MVP Use | Notes |
 | --- | --- | --- | --- |
 | API hosting | ECS Fargate behind Application Load Balancer | Run the Express API as a container | Prefer ECS over Lambda for the first move because the app is already a long-running Node server and may later add background jobs. |
-| Container images | ECR | Store API images | One repository for `mathforge-api` is enough. |
+| Container images | ECR | Store API images | One repository for `learningforge-api` is enough. |
 | Database | RDS PostgreSQL | Replace local/in-memory persistence when the Prisma-backed store is ready | Start with one small instance in private subnets. Enable automated backups. |
 | Secrets | Secrets Manager | `DATABASE_URL`, `OPENAI_API_KEY`, future JWT/session secrets | Do not put secrets in task env plaintext, repo files, or Expo public config. |
 | Runtime config | SSM Parameter Store | Non-secret settings such as allowed origins, feature flags, app environment | Keep feature flags server-side unless mobile needs public read-only values. |
@@ -78,8 +78,8 @@ ECS Fargate API service (private subnets)
 
 - Store only the child profile data required for the quest loop: display name, grade level, interests, preferred theme, tutor tone, daily goal, progress, attempts, and rewards.
 - Do not store open-ended child chat because the MVP does not include open chat.
-- Keep math answers, generators, answer checking, XP, coins, quest lifecycle, and rewards deterministic in application code.
-- AI may reword tutor hints or summaries later, but it must not decide correctness or generate problem truth.
+- Keep activity answers, generators, answer checking, XP, coins, quest lifecycle, and rewards deterministic in application code.
+- AI may reword tutor hints or summaries later, but it must not decide correctness or generate answer truth.
 
 ## Migration Sequence
 

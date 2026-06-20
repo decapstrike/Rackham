@@ -1,6 +1,6 @@
 # Local Development Infrastructure
 
-MathForge should remain easy to run locally while the AWS path is being prepared. Local infrastructure is intentionally small: Node workspaces plus a Docker-managed Postgres database.
+LearningForge should remain easy to run locally while the AWS path is being prepared. Local infrastructure is intentionally small: Node workspaces plus a Docker-managed Postgres database.
 
 ## Prerequisites
 
@@ -29,7 +29,7 @@ npm run dev:mobile
 
 | Service | URL | Purpose |
 | --- | --- | --- |
-| API | `http://localhost:4000` | Express API for profile, quest, problem, rewards, and parent summary flows. |
+| API | `http://localhost:4000` | Express API for profile, quest, activity/problem, rewards, and parent summary flows. |
 | Postgres | `localhost:5432` | Local database target for Prisma-backed persistence. |
 | Mobile | Expo dev server | Child-facing app prototype. |
 
@@ -38,7 +38,7 @@ npm run dev:mobile
 `DATABASE_URL` in `.env.example` matches the Docker Compose Postgres service:
 
 ```text
-postgresql://mathforge:mathforge@localhost:5432/mathforge
+postgresql://learningforge:learningforge@localhost:5432/learningforge
 ```
 
 `OPENAI_API_KEY` may stay empty. The app must continue to use deterministic fallback wording when AI is not configured.
@@ -87,4 +87,4 @@ Keep these aligned between local and AWS alpha:
 - Deterministic fallback behavior when AI is disabled.
 - API contract behavior from `docs/API_CONTRACTS.md`.
 
-Do not add local-only behavior that changes math correctness, rewards, or quest lifecycle outcomes.
+Do not add local-only behavior that changes content correctness, rewards, or quest lifecycle outcomes.

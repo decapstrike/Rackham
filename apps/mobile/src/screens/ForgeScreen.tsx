@@ -1,7 +1,7 @@
 import { Text, StyleSheet } from "react-native";
 import { Button, Panel, Screen, Body } from "../components/ui";
 import { useGameStore } from "../state/useGameStore";
-import { forgeUpgrades } from "@mathforge/shared";
+import { forgeUpgrades } from "@learningforge/shared";
 import { theme } from "../theme/theme";
 
 export function ForgeScreen() {
@@ -13,7 +13,7 @@ export function ForgeScreen() {
         <Panel key={upgrade.key}>
           <Text style={styles.name}>{upgrade.name}</Text>
           <Body>Level {forge[upgrade.key] ?? 0}/{upgrade.maxLevel} · {upgrade.cost} coins</Body>
-          <Button onPress={() => buyUpgrade(upgrade.key, upgrade.cost)}>Upgrade</Button>
+          <Button onPress={() => buyUpgrade(upgrade.key, upgrade.cost)}>Upgrade Studio</Button>
         </Panel>
       ))}
     </Screen>
